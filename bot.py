@@ -21,7 +21,13 @@ def send_message(text):
         "parse_mode": "Markdown",
         "disable_web_page_preview": True
     }
-    requests.post(url, json=payload)
+    # Отправляем и смотрим, что ответил Телеграм
+    response = requests.post(url, json=payload)
+    print(f"ОТВЕТ ТЕЛЕГРАМА: {response.status_code} - {response.text}")
+    
+    # Если Телеграм ответил не "ОК", искусственно вызываем ошибку, чтобы GitHub показал красный крест
+    if response.status_code != 200:
+        raise Exception(f"Телеграм отклонил сообщение! Причина: {response.text}")
 
 def get_news(keywords, lang, gl):
     encoded_query = requests.utils.quote(keywords)
