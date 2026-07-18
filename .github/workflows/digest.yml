@@ -1,6 +1,7 @@
 name: Maps Digest Sender
 
 on:
+  workflow_dispatch:
   schedule:
     # Четверг в 10:00 по Москве (Москва = UTC+3, поэтому 10 - 3 = 7 по Гринвичу)
     - cron: '0 7 * * 4'
