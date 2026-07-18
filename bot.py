@@ -1,7 +1,7 @@
 import feedparser
 import requests
-import time
 import sys
+from datetime import datetime, timedelta
 
 TOKEN = '8315240372:AAHSLp4ttCPRwysSmEh8r6otZkMQRcJUuUE'
 CHANNEL_ID = '-1004352959600'
@@ -24,26 +24,39 @@ def send_message(text):
         raise Exception(f"ОШИБКА: {response.text}")
 
 def get_news(keywords, lang, gl):
-    # МАГИЯ ЗДЕСЬ: добавляем "when:7d", чтобы брать ТОЛЬКО за последние 7 дней
-    query_with_time = keywords + " when:7d"
-    encoded_query = requests.utils.quote(query_with_time)
+    # Вычисляем дату 7 дней назад от текущего момента
+    week_ago = datetime.now() - timedelta(days=7)
     
+    encoded_query = requests.utils.quote(keywords)
     url = f"https://news.google.com/rss/search?q={encoded_query}&hl={lang}&gl={gl}&ceid={gl}:{lang}"
     feed = feedparser.parse(url)
     news_items = []
     seen_links = set()
     
-    for entry in feed.entries[:20]:
+    # Берем 50 штук, чтобы было из чего выбрать после фильтрации
+    for entry in feed.entries[:50]:
         if entry.link not in seen_links:
             seen_links.add(entry.link)
+            
             try:
-                pub_date = time.strftime("%d.%m.%Y", entry.published_parsed)
+                # Переводим дату статьи в формат Python
+                pub_dt = datetime(*entry.published_parsed[:6])
+                
+                # СРАВНИВАЕМ ДАТЫ: если старше 7 дней — пропускаем!
+                if pub_dt < week_ago:
+                    continue
+                    
+                pub_date = pub_dt.strftime("%d.%m.%Y")
             except:
-                pub_date = "Дата ?"
+                # Если у статьи вообще нет даты — пропускаем
+                continue
+                
             title = entry.title
             link = entry.link
             news_items.append(f"{pub_date} | {title} | <a href='{link}'>Читать</a>")
-    return news_items
+            
+    # Возвращаем не более 20 самых свежих
+    return news_items[:20]
 
 region = sys.argv[1]
 
