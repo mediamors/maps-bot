@@ -6,9 +6,18 @@ from datetime import datetime, timedelta
 TOKEN = '8315240372:AAHSLp4ttCPRwysSmEh8r6otZkMQRcJUuUE'
 CHANNEL_ID = '-1004352959600'
 
-KEYWORDS_RU = '"Яндекс Карты" OR "Яндекс.Карты" OR "Карты Яндекса" OR "ЯндексКарты" OR "Яндекс.Навигатор" OR "Яндекс Навигатор" OR "2ГИС" OR "ДубльГИС" OR "Двагис" OR "2 ГИС" OR "2GIS" OR "Google Карты" OR "Google Maps" OR "Google.Карты" OR "СитиГид" OR "CityGuide" OR "City Guide" OR "Probki.net" OR "Навител" OR "Navitel" OR "Organic Maps" OR "OsmAnd" OR "Maps.me" OR "Mapsme" OR "Яндекс Бизнес" OR "Яндекс.Бизнес" OR "Yandex Business" OR "Google Business Profile" OR "Google Мой Бизнес" OR "Google.Мой.Бизнес" OR "Apple Business Connect" OR "Foursquare" OR "Swarm" OR "ВКонтакте геотеги" OR "VK геолокация" OR "VK карты" OR "2ГИС Геоаналитика" OR "2GIS Гeoаналитика" OR "Яндекс геосервисы" OR "Yandex Geo" OR "картографический сервис" OR "геосервис" OR "навигационное приложение" OR "ГИС" OR "геоинформационная система"'
+# РАЗБИВАЕМ НА 3 ОТДЕЛЬНЫХ ЗАПРОСА ДЛЯ НАДЕЖНОСТИ
+QUERIES_RU = [
+    '"Яндекс Карты" OR "Яндекс.Карты" OR "Яндекс Навигатор" OR "2ГИС" OR "ДубльГИС" OR "2GIS"',
+    '"Google Карты" OR "Google Maps" OR "СитиГид" OR "CityGuide" OR "Навител" OR "Organic Maps" OR "Maps.me" OR "OsmAnd"',
+    '"Яндекс Бизнес" OR "Google Business" OR "Foursquare" OR "картографический сервис" OR "геосервис" OR "навигационное приложение"'
+]
 
-KEYWORDS_WORLD = '"Google Maps" OR "Apple Maps" OR "Waze" OR "Foursquare" OR "Swarm" OR "HERE WeGo" OR "HERE Technologies" OR "HERE Maps" OR "TomTom" OR "Sygic" OR "Mapbox" OR "CARTO" OR "Esri" OR "KakaoMap" OR "Naver Map" OR "Baidu Maps" OR "Gaode Maps" OR "Amap" OR "Navitime" OR "Yahoo! Maps" OR "MapmyIndia" OR "Mappls" OR "GrabMaps" OR "Grab Maps" OR "Gojek Maps" OR "Maps.me" OR "Mapsme" OR "Guru Maps" OR "OsmAnd" OR "OpenStreetMap" OR "OSM" OR "Google Business Profile" OR "Apple Business Connect"'
+QUERIES_WORLD = [
+    '"Google Maps" OR "Apple Maps" OR "Waze" OR "Foursquare"',
+    '"HERE WeGo" OR "HERE Technologies" OR "TomTom" OR "Sygic" OR "Mapbox" OR "Esri"',
+    '"KakaoMap" OR "Naver Map" OR "Baidu Maps" OR "Gaode Maps" OR "Amap" OR "Navitime" OR "MapmyIndia" OR "GrabMaps" OR "Gojek Maps" OR "OpenStreetMap"'
+]
 
 def send_message(text):
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
@@ -19,52 +28,54 @@ def send_message(text):
         "disable_web_page_preview": True
     }
     response = requests.post(url, json=payload)
-    print(f"ОТВЕТ ТЕЛЕГРАМА: {response.status_code} - {response.text}")
+    print(f"ОТВЕТ ТЕЛЕГРАМА: {response.status_code}")
     if response.status_code != 200:
         raise Exception(f"ОШИБКА: {response.text}")
 
-def get_news(keywords, lang, gl):
-    # Вычисляем дату 7 дней назад от текущего момента
+def get_news(queries, lang, gl):
     week_ago = datetime.now() - timedelta(days=7)
-    
-    encoded_query = requests.utils.quote(keywords)
-    url = f"https://news.google.com/rss/search?q={encoded_query}&hl={lang}&gl={gl}&ceid={gl}:{lang}"
-    feed = feedparser.parse(url)
     news_items = []
     seen_links = set()
     
-    # Берем 50 штук, чтобы было из чего выбрать после фильтрации
-    for entry in feed.entries[:50]:
-        if entry.link not in seen_links:
-            seen_links.add(entry.link)
-            
-            try:
-                # Переводим дату статьи в формат Python
-                pub_dt = datetime(*entry.published_parsed[:6])
-                
-                # СРАВНИВАЕМ ДАТЫ: если старше 7 дней — пропускаем!
-                if pub_dt < week_ago:
-                    continue
+    # Теперь цикл проходит по КАЖДОМУ маленькому запросу
+    for query in queries:
+        encoded_query = requests.utils.quote(query)
+        url = f"https://news.google.com/rss/search?q={encoded_query}&hl={lang}&gl={gl}&ceid={gl}:{lang}"
+        
+        try:
+            feed = feedparser.parse(url)
+            # Берем топ-15 из каждого маленького запроса
+            for entry in feed.entries[:15]:
+                if entry.link not in seen_links:
+                    seen_links.add(entry.link)
                     
-                pub_date = pub_dt.strftime("%d.%m.%Y")
-            except:
-                # Если у статьи вообще нет даты — пропускаем
-                continue
-                
-            title = entry.title
-            link = entry.link
-            news_items.append(f"{pub_date} | {title} | <a href='{link}'>Читать</a>")
+                    try:
+                        pub_dt = datetime(*entry.published_parsed[:6])
+                        if pub_dt < week_ago:
+                            continue
+                        pub_date = pub_dt.strftime("%d.%m.%Y")
+                    except:
+                        continue
+                        
+                    title = entry.title
+                    link = entry.link
+                    news_items.append(f"{pub_date} | {title} | <a href='{link}'>Читать</a>")
+        except Exception as e:
+            print(f"Ошибка при запросе {query}: {e}")
             
-    # Возвращаем не более 20 самых свежих
+    # Сортируем все собранные новости по дате (от новых к старым)
+    news_items.sort(key=lambda x: x.split(' | ')[0], reverse=True)
+    
+    # Отдаем максимум 20 штук
     return news_items[:20]
 
 region = sys.argv[1]
 
 if region == 'RU':
-    news = get_news(KEYWORDS_RU, 'ru', 'RU')
+    news = get_news(QUERIES_RU, 'ru', 'RU')
     header = "🇷🇺 Дайджест: Картографические сервисы РФ\n\n"
 else:
-    news = get_news(KEYWORDS_WORLD, 'en', 'US')
+    news = get_news(QUERIES_WORLD, 'en', 'US')
     header = "🌍 Дайджест: Мировые картографические сервисы\n\n"
 
 if not news:
