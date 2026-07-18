@@ -5,7 +5,7 @@ import sys
 
 # === НАСТРОЙКИ БОТА ===
 TOKEN = '8315240372:AAHSLp4ttCPRwysSmEh8r6otZkMQRcJUuUE'
-CHANNEL_ID = '@mapspmmbot'
+CHANNEL_ID = '-1004352959600'
 
 # === КЛЮЧЕВЫЕ СЛОВА ===
 KEYWORDS_RU = '"Яндекс Карты" OR "Яндекс.Карты" OR "Карты Яндекса" OR "ЯндексКарты" OR "Яндекс.Навигатор" OR "Яндекс Навигатор" OR "2ГИС" OR "ДубльГИС" OR "Двагис" OR "2 ГИС" OR "2GIS" OR "Google Карты" OR "Google Maps" OR "Google.Карты" OR "СитиГид" OR "CityGuide" OR "City Guide" OR "Probki.net" OR "Навител" OR "Navitel" OR "Organic Maps" OR "OsmAnd" OR "Maps.me" OR "Mapsme" OR "Яндекс Бизнес" OR "Яндекс.Бизнес" OR "Yandex Business" OR "Google Business Profile" OR "Google Мой Бизнес" OR "Google.Мой.Бизнес" OR "Apple Business Connect" OR "Foursquare" OR "Swarm" OR "ВКонтакте геотеги" OR "VK геолокация" OR "VK карты" OR "2ГИС Геоаналитика" OR "2GIS Гeoаналитика" OR "Яндекс геосервисы" OR "Yandex Geo" OR "картографический сервис" OR "геосервис" OR "навигационное приложение" OR "ГИС" OR "геоинформационная система"'
