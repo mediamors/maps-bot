@@ -2,8 +2,10 @@ name: Maps Bot
 on:
   workflow_dispatch:
   schedule:
+    # Понедельник в 10:00 МСК (Маркетинг)
+    - cron: '0 7 * * 1'
+    # Четверг в 10:00 МСК (РФ + Мир)
     - cron: '0 7 * * 4'
-    - cron: '0 11 * * 6'
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -14,7 +16,10 @@ jobs:
         python-version: '3.10'
     - run: pip install feedparser requests
     
-    # Блок ручного теста (Выполняет ОБА скрипта друг за другом)
+    # Ручной тест (прилетят все 3 поста друг за другом)
+    - name: Test Marketing
+      if: github.event_name == 'workflow_dispatch'
+      run: python bot.py MARKETING
     - name: Test RU
       if: github.event_name == 'workflow_dispatch'
       run: python bot.py RU
@@ -22,10 +27,15 @@ jobs:
       if: github.event_name == 'workflow_dispatch'
       run: python bot.py WORLD
     
-    # Блоки для автоматической работы по расписанию
+    # Понедельник: Только маркетинг
+    - name: Cron Marketing
+      if: github.event.schedule == '0 7 * * 1'
+      run: python bot.py MARKETING
+    
+    # Четверг: РФ и Мир
     - name: Cron RU
       if: github.event.schedule == '0 7 * * 4'
       run: python bot.py RU
     - name: Cron World
-      if: github.event.schedule == '0 11 * * 6'
+      if: github.event.schedule == '0 7 * * 4'
       run: python bot.py WORLD
