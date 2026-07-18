@@ -12,22 +12,19 @@ KEYWORDS_RU = '"Яндекс Карты" OR "Яндекс.Карты" OR "Кар
 
 KEYWORDS_WORLD = '"Google Maps" OR "Apple Maps" OR "Waze" OR "Foursquare" OR "Swarm" OR "HERE WeGo" OR "HERE Technologies" OR "HERE Maps" OR "TomTom" OR "Sygic" OR "Mapbox" OR "CARTO" OR "Esri" OR "KakaoMap" OR "Naver Map" OR "Baidu Maps" OR "Gaode Maps" OR "Amap" OR "Navitime" OR "Yahoo! Maps" OR "MapmyIndia" OR "Mappls" OR "GrabMaps" OR "Grab Maps" OR "Gojek Maps" OR "Maps.me" OR "Mapsme" OR "Guru Maps" OR "OsmAnd" OR "OpenStreetMap" OR "OSM" OR "Google Business Profile" OR "Apple Business Connect"'
 
-# === ФУНКЦИИ ===
 def send_message(text):
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
     payload = {
         "chat_id": CHANNEL_ID,
         "text": text,
-        "parse_mode": "Markdown",
+        "parse_mode": "HTML", # Сменили на HTML - он не ломается от спецсимволов в новостях
         "disable_web_page_preview": True
     }
-    # Отправляем и смотрим, что ответил Телеграм
     response = requests.post(url, json=payload)
     print(f"ОТВЕТ ТЕЛЕГРАМА: {response.status_code} - {response.text}")
     
-    # Если Телеграм ответил не "ОК", искусственно вызываем ошибку, чтобы GitHub показал красный крест
     if response.status_code != 200:
-        raise Exception(f"Телеграм отклонил сообщение! Причина: {response.text}")
+        raise Exception(f"ОШИБКА ОТПРАВКИ В ТГ: {response.text}")
 
 def get_news(keywords, lang, gl):
     encoded_query = requests.utils.quote(keywords)
@@ -43,25 +40,27 @@ def get_news(keywords, lang, gl):
                 pub_date = time.strftime("%d.%m.%Y", entry.published_parsed)
             except:
                 pub_date = "Дата ?"
-            title = entry.title.replace('|', '\\|').replace('[', '\\[').replace(']', '\\]')
-            news_items.append(f"{pub_date} | {title} | [Читать]({entry.link})")
+            
+            title = entry.title
+            link = entry.link
+            # Делаем ссылку через безопасный HTML
+            news_items.append(f"{pub_date} | {title} | <a href='{link}'>Читать</a>")
+            
     return news_items
 
-# === ЗАПУСК ===
-# Скрипт понимает, что ему делать, по команде: python bot.py RU  или  python bot.py WORLD
 region = sys.argv[1]
 
 if region == 'RU':
     news = get_news(KEYWORDS_RU, 'ru', 'RU')
-    header = "🇷🇺 **Дайджест: Картографические сервисы РФ**\n\n"
+    header = "🇷🇺 Дайджест: Картографические сервисы РФ\n\n"
 else:
     news = get_news(KEYWORDS_WORLD, 'en', 'US')
-    header = "🌍 **Дайджест: Мировые картографические сервисы**\n\n"
+    header = "🌍 Дайджест: Мировые картографические сервисы\n\n"
 
 if not news:
-    final_text = header + "_На этой неделе новостей по заданным ключевым словам не найдено._"
+    final_text = header + "На этой неделе новостей не найдено."
 else:
     final_text = header + "\n\n".join(news)
 
 send_message(final_text)
-print("Успешно отправлено!")
+print("Скрипт завершен.")
