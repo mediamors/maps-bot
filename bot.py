@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 TOKEN = '8315240372:AAHSLp4ttCPRwysSmEh8r6otZkMQRcJUuUE'
 CHANNEL_ID = '-1004352959600'
 
+# Обычные запросы для Чт (оставляем как есть, они работают отлично)
 QUERIES_RU = [
     '"Яндекс Карты" OR "Яндекс.Карты" OR "Яндекс Навигатор" OR "2ГИС" OR "ДубльГИС" OR "2GIS"',
     '"Google Карты" OR "Google Maps" OR "СитиГид" OR "CityGuide" OR "Навител" OR "Organic Maps" OR "Maps.me" OR "OsmAnd"',
@@ -19,24 +20,26 @@ QUERIES_WORLD = [
     '"KakaoMap" OR "Naver Map" OR "Baidu Maps" OR "Gaode Maps" OR "Amap" OR "Navitime" OR "MapmyIndia" OR "GrabMaps" OR "Gojek Maps" OR "OpenStreetMap"'
 ]
 
-# РАСШИРЕННЫЙ ПОИСК ДЛЯ ПОНЕДЕЛЬНИКА
+# ЖЕСТКИЙ СПИСОК БРЕНДОВ (без голого слова "карты", чтобы не было банковских карт)
+BRANDS = '"Яндекс Карты" OR "Яндекс.Карты" OR "Яндекс Навигатор" OR "2ГИС" OR "ДубльГИС" OR "2GIS" OR "Google Карты" OR "Google Maps" OR "Навител" OR "Maps.me" OR "СитиГид" OR "CityGuide" OR "Где мои дети"'
+
+# Поиск по профильным СМИ (Пн) - ПРИВЯЗЫВАЕМ ТОЛЬКО К БРЕНДАМ
 QUERIES_MARKETING = [
-    # 1. Ядро маркетинга
-    'site:sostav.ru (карты OR "2ГИС" OR "Яндекс Карты" OR "Google Карты" OR геосервис)',
-    'site:vc.ru (карты OR "2ГИС" OR "Яндекс Карты" OR "Google Maps" OR навигатор)',
-    'site:adindex.ru OR site:cossa.ru (карты OR "Яндекс Карты" OR "2ГИС")',
+    # 1. Маркетинг
+    f'site:sostav.ru OR site:adindex.ru OR site:cossa.ru ({BRANDS})',
+    f'site:vc.ru OR site:slon.ru ({BRANDS})',
     # 2. IT и Разработка
-    'site:habr.com (карты OR "2ГИС" OR "Яндекс Карты" OR "Google Maps" OR OpenStreetMap)',
-    'site:tjournal.ru OR site:roem.ru OR site:tadviser.ru (карты OR "Яндекс Карты" OR "2ГИС" OR геосервис)',
+    f'site:habr.com OR site:tjournal.ru OR site:roem.ru ({BRANDS})',
+    f'site:tadviser.ru OR site:cnews.ru ({BRANDS})',
     # 3. Бизнес и GR
-    'site:rbc.ru OR site:vedomosti.ru OR site:forbes.ru (карты OR "Яндекс Карты" OR "2ГИС" OR "Google Карты")',
-    'site:kommersant.ru OR site:iz.ru (карты OR "Яндекс Карты" OR "2ГИС" OR навигатор)',
-    # 4. Юридические и IT-гос
-    'site:rapsi.ru OR site:zakon.ru OR site:cnews.ru (карты OR "2ГИС" OR "Яндекс Карты" OR ГИС)',
-    # 5. Крупные агентства (НРА, Russ и др.)
-    'site:nra.ru OR site:russ-media.com (карты OR "Яндекс Карты" OR "2ГИС" OR геосервис)',
-    # 6. Сетка-безопасность по смыслу
-    '("Яндекс Карты" OR "2ГИС" OR "Google Карты" OR геосервис) AND (маркетинг OR реклама OR разработка OR "локальный маркетинг" OR кейс OR "новая функция" OR релиз)'
+    f'site:rbc.ru OR site:vedomosti.ru OR site:forbes.ru ({BRANDS})',
+    f'site:kommersant.ru OR site:iz.ru ({BRANDS})',
+    # 4. Юридические
+    f'site:rapsi.ru OR site:zakon.ru ({BRANDS})',
+    # 5. Агентства
+    f'site:nra.ru OR site:russ-media.com ({BRANDS})',
+    # 6. Сетка по всему интернету (Только бренды + узкие слова про индустрию)
+    f'({BRANDS}) AND (маркетинг OR реклама OR кейс OR "локальный поиск" OR "продуктовая команда" OR "новая функция")'
 ]
 
 def translate_to_ru(text):
