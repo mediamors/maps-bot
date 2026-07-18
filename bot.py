@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 TOKEN = '8315240372:AAHSLp4ttCPRwysSmEh8r6otZkMQRcJUuUE'
 CHANNEL_ID = '-1004352959600'
 
-# Обычные запросы для Чт (оставляем как есть, работают идеально)
+# Обычные запросы для Чт (оставляем как есть)
 QUERIES_RU = [
     '"Яндекс Карты" OR "Яндекс.Карты" OR "Яндекс Навигатор" OR "2ГИС" OR "ДубльГИС" OR "2GIS"',
     '"Google Карты" OR "Google Maps" OR "СитиГид" OR "CityGuide" OR "Навител" OR "Organic Maps" OR "Maps.me" OR "OsmAnd"',
@@ -20,24 +20,25 @@ QUERIES_WORLD = [
     '"KakaoMap" OR "Naver Map" OR "Baidu Maps" OR "Gaode Maps" OR "Amap" OR "Navitime" OR "MapmyIndia" OR "GrabMaps" OR "Gojek Maps" OR "OpenStreetMap"'
 ]
 
-# РАЗБИТЫЕ ЗАПРОСЫ ДЛЯ ПН (Микро-запросы, которые Google переваривает на 100%)
+# ПОНЕДЕЛЬНИК: Только узкопрофильные площадки (без РБК и Коммерсанта, они есть в Чт)
 QUERIES_MARKETING = [
-    # 1. Sostav & VC (Яндекс)
-    'site:sostav.ru OR site:vc.ru ("Яндекс Карты" OR "Яндекс.Карты" OR "Яндекс Навигатор")',
-    # 2. Sostav & VC (Остальные)
-    'site:sostav.ru OR site:vc.ru ("2ГИС" OR "ДубльГИС" OR "2GIS" OR "Google Карты" OR "Google Maps")',
-    # 3. IT-блоги (Habr, TJ, Roem)
-    'site:habr.com OR site:tjournal.ru OR site:roem.ru ("Яндекс Карты" OR "2ГИС" OR "Google Maps" OR "OpenStreetMap")',
-    # 4. Бизнес-гиганты (РБК, Ведомости, Forbes)
-    'site:rbc.ru OR site:vedomosti.ru OR site:forbes.ru ("Яндекс Карты" OR "2ГИС" OR "Google Карты")',
-    # 5. Классические СМИ (Коммерсант, Известия)
-    'site:kommersant.ru OR site:iz.ru ("Яндекс Карты" OR "2ГИС" OR "Google Карты")',
-    # 6. Юридические и Гос. IT
-    'site:rapsi.ru OR site:zakon.ru OR site:cnews.ru ("Яндекс Карты" OR "2ГИС" OR "Навител" OR ГИС)',
-    # 7. Агентства
-    'site:nra.ru OR site:russ-media.com ("Яндекс Карты" OR "2ГИС" OR "картографический сервис")',
-    # 8. Широкая сеть (Без привязки к сайту, ищем по всему интернету бренды + маркерные слова)
-    '("Яндекс Карты" OR "2ГИС" OR "Google Maps") AND (маркетинг OR "PR-кампания" OR "локальный маркетинг" OR "продуктовая команда")'
+    # 1. Чистый маркетинг (Sostav работает идеально)
+    'site:sostav.ru ("Яндекс Карты" OR "2ГИС" OR "Google Maps")',
+    # 2. Продукты и стартапы (VC иногда спамит, но тут жесткий фильтр)
+    'site:vc.ru ("Яндекс Карты" OR "2ГИС" OR "Google Maps")',
+    # 3. IT и Разработка (Тут пишут инженеры напрямую)
+    'site:habr.com ("Яндекс Карты" OR "2ГИС" OR "Google Maps" OR "OpenStreetMap")',
+    # 4. Бизнес-аналитика (Roem, TAdviser)
+    'site:roem.ru OR site:tadviser.ru ("Яндекс Карты" OR "2ГИС" OR "Google Maps")',
+    # 5. IT-индустрия
+    'site:cnews.ru ("Яндекс Карты" OR "2ГИС" OR "ГИС")',
+    # 6. Юридические (только прямые упоминания брендов)
+    'site:rapsi.ru ("Яндекс Карты" OR "2ГИС")',
+    'site:zakon.ru ("Яндекс Карты" OR "2ГИС")',
+    # 7. Агентства (НРА и др.)
+    'site:nra.ru ("Яндекс Карты" OR "2ГИС" OR "картографический сервис")',
+    # 8. Сетка-безопасность (Ищем по ВСЕМУ интернету бренды + слова из маркетинга)
+    '("Яндекс Карты" OR "2ГИС" OR "Google Maps") AND (маркетинг OR "локальный маркетинг" OR "продуктовая команда" OR "PR-кампания" OR "кейс")'
 ]
 
 def translate_to_ru(text):
