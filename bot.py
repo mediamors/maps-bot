@@ -24,7 +24,10 @@ def send_message(text):
         raise Exception(f"ОШИБКА: {response.text}")
 
 def get_news(keywords, lang, gl):
-    encoded_query = requests.utils.quote(keywords)
+    # МАГИЯ ЗДЕСЬ: добавляем "when:7d", чтобы брать ТОЛЬКО за последние 7 дней
+    query_with_time = keywords + " when:7d"
+    encoded_query = requests.utils.quote(query_with_time)
+    
     url = f"https://news.google.com/rss/search?q={encoded_query}&hl={lang}&gl={gl}&ceid={gl}:{lang}"
     feed = feedparser.parse(url)
     news_items = []
