@@ -13,12 +13,19 @@ jobs:
       with:
         python-version: '3.10'
     - run: pip install feedparser requests
-    - name: test_ru
+    
+    # Блок ручного теста (Выполняет ОБА скрипта друг за другом)
+    - name: Test RU
       if: github.event_name == 'workflow_dispatch'
       run: python bot.py RU
-    - name: cron_ru
+    - name: Test World
+      if: github.event_name == 'workflow_dispatch'
+      run: python bot.py WORLD
+    
+    # Блоки для автоматической работы по расписанию
+    - name: Cron RU
       if: github.event.schedule == '0 7 * * 4'
       run: python bot.py RU
-    - name: cron_world
+    - name: Cron World
       if: github.event.schedule == '0 11 * * 6'
       run: python bot.py WORLD
