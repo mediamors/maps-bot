@@ -246,8 +246,8 @@ else:
     else:
         ph_url = create_telegraph_page(ph_title, news)
         if ph_url:
-            # Весь эмодзи стал кликабельной ссылкой, текст обычный
-            msg = f"<a href='{ph_url}'>{tg_emoji}</a> {tg_text}"
+            # Эмодзи - ссылка, пробел, Текст - ссылка
+            msg = f"<a href='{ph_url}'>{tg_emoji}</a> <a href='{ph_url}'>{tg_text}</a>"
             send_tg_message(msg)
         else:
             text = f"{tg_emoji} {tg_text}\n\n" + "\n\n".join([f"<b>{d}</b>\n{t}\n{s} | <a href='{l}'>Читать</a>" for d, t, s, l in news])
