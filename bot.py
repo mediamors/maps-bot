@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 TOKEN = '8315240372:AAHSLp4ttCPRwysSmEh8r6otZkMQRcJUuUE'
 CHANNEL_ID = '-1004352959600'
 
-# Обычные запросы для Чт (оставляем как есть)
+# Запросы для Чт (работают идеально)
 QUERIES_RU = [
     '"Яндекс Карты" OR "Яндекс.Карты" OR "Яндекс Навигатор" OR "2ГИС" OR "ДубльГИС" OR "2GIS"',
     '"Google Карты" OR "Google Maps" OR "СитиГид" OR "CityGuide" OR "Навител" OR "Organic Maps" OR "Maps.me" OR "OsmAnd"',
@@ -20,25 +20,21 @@ QUERIES_WORLD = [
     '"KakaoMap" OR "Naver Map" OR "Baidu Maps" OR "Gaode Maps" OR "Amap" OR "Navitime" OR "MapmyIndia" OR "GrabMaps" OR "Gojek Maps" OR "OpenStreetMap"'
 ]
 
-# ПОНЕДЕЛЬНИК: Только узкопрофильные площадки (без РБК и Коммерсанта, они есть в Чт)
+# Запросы для Пн (Ищем по всему интернету связку Бренд + Маркетинг)
 QUERIES_MARKETING = [
-    # 1. Чистый маркетинг (Sostav работает идеально)
-    'site:sostav.ru ("Яндекс Карты" OR "2ГИС" OR "Google Maps")',
-    # 2. Продукты и стартапы (VC иногда спамит, но тут жесткий фильтр)
-    'site:vc.ru ("Яндекс Карты" OR "2ГИС" OR "Google Maps")',
-    # 3. IT и Разработка (Тут пишут инженеры напрямую)
-    'site:habr.com ("Яндекс Карты" OR "2ГИС" OR "Google Maps" OR "OpenStreetMap")',
-    # 4. Бизнес-аналитика (Roem, TAdviser)
-    'site:roem.ru OR site:tadviser.ru ("Яндекс Карты" OR "2ГИС" OR "Google Maps")',
-    # 5. IT-индустрия
-    'site:cnews.ru ("Яндекс Карты" OR "2ГИС" OR "ГИС")',
-    # 6. Юридические (только прямые упоминания брендов)
-    'site:rapsi.ru ("Яндекс Карты" OR "2ГИС")',
-    'site:zakon.ru ("Яндекс Карты" OR "2ГИС")',
-    # 7. Агентства (НРА и др.)
-    'site:nra.ru ("Яндекс Карты" OR "2ГИС" OR "картографический сервис")',
-    # 8. Сетка-безопасность (Ищем по ВСЕМУ интернету бренды + слова из маркетинга)
-    '("Яндекс Карты" OR "2ГИС" OR "Google Maps") AND (маркетинг OR "локальный маркетинг" OR "продуктовая команда" OR "PR-кампания" OR "кейс")'
+    # Ищем прямую рекламу и спецпроекты
+    '("Яндекс Карты" OR "2ГИС" OR "Google Карты") AND (реклама OR "спецпроект" OR "наружная реклама" OR BTL OR "промо-акция")',
+    # Ищем кейсы по продвижению и локальному маркетингу
+    '("Яндекс Карты" OR "2ГИС" OR "Google Maps" OR "Яндекс Бизнес") AND ("локальный маркетинг" OR продвижение OR "лидогенерация" OR "геомаркетинг" OR кейс)',
+    # Ищем новости про инструменты для бизнеса на картах
+    '("Яндекс Бизнес" OR "Google Business Profile" OR "2ГИС Справочник") AND (отзывы OR реклама OR "таргет в картах")'
+]
+
+# СПИСОК СЛОВ-МАРКЕРОВ ДЛЯ "ЩИТА" (Если этого нет в заголовке - новость мусорная)
+REQUIRED_BRANDS = [
+    'яндекс карт', '2гис', 'дубльгис', 'google карт', 'навител', 
+    'ситигид', 'organic maps', 'maps.me', 'османд', 'osmand',
+    'яндекс бизнес', 'google business', 'картографическ'
 ]
 
 def translate_to_ru(text):
@@ -68,7 +64,7 @@ def send_message(text):
     if response.status_code != 200:
         raise Exception(f"ОШИБКА: {response.text}")
 
-def get_news(queries, lang, gl, do_translate=False):
+def get_news(queries, lang, gl, do_translate=False, is_marketing=False):
     week_ago = datetime.now() - timedelta(days=7)
     news_items = []
     seen_links = set()
@@ -101,6 +97,15 @@ def get_news(queries, lang, gl, do_translate=False):
                         clean_title = parts[0].strip()
                         source = parts[1].strip()
 
+                    # >>> ВОТ ОН, "ЩИТ" ПРОТИВ МУСОРА <<<
+                    # Если это блок маркетинга, проверяем заголовок
+                    if is_marketing:
+                        title_lower = clean_title.lower()
+                        # Если ни одно слово из REQUIRED_BRANDS не найдено в заголовке — пропускаем!
+                        if not any(brand in title_lower for brand in REQUIRED_BRANDS):
+                            print(f"МУСОР ОТБРОШЕН: {clean_title[:40]}...")
+                            continue
+
                     if do_translate:
                         print(f"Перевожу: {clean_title[:30]}...")
                         clean_title = translate_to_ru(clean_title)
@@ -115,18 +120,21 @@ def get_news(queries, lang, gl, do_translate=False):
 region = sys.argv[1]
 
 if region == 'RU':
-    news = get_news(QUERIES_RU, 'ru', 'RU', do_translate=False)
+    news = get_news(QUERIES_RU, 'ru', 'RU')
     header = "🇷🇺 <b>Карты РФ</b>\n\n"
+    hashtags = "\n\n#КартыРФ #ЯндексКарты #2ГИС #Геосервисы #Навигация"
 elif region == 'WORLD':
     news = get_news(QUERIES_WORLD, 'en', 'US', do_translate=True)
     header = "🌍 <b>Карты в мире</b>\n\n"
+    hashtags = "\n\n#КартыМира #GoogleMaps #AppleMaps #Mapbox #TechNews"
 else:
-    news = get_news(QUERIES_MARKETING, 'ru', 'RU', do_translate=False)
+    news = get_news(QUERIES_MARKETING, 'ru', 'RU', is_marketing=True)
     header = "🧩 <b>Маркетинг и индустрия карт</b>\n\n"
+    hashtags = "\n\n#МаркетингКарт #ГеоРеклама #ЛокальныйМаркетинг #Спецпроекты #BTL"
 
 if not news:
-    final_text = header + "На этой неделе новостей не найдено."
+    final_text = header + "На этой неделе новостей не найдено." + hashtags
 else:
-    final_text = header + "\n\n".join(news)
+    final_text = header + "\n\n".join(news) + hashtags
 
 send_message(final_text)
