@@ -182,7 +182,7 @@ period_str = get_week_period()
 
 # 1. Отправка шапки (если вызван режим HEADER)
 if region == 'HEADER':
-    send_tg_message(f"↧ за {period_str}")
+    send_tg_message(f"↧ Dайджест за {period_str}")
     
 else:
     # 2. Формируем заголовки (без дат, они теперь только в заголовке Telegra.ph)
