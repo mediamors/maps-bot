@@ -8,7 +8,7 @@ import difflib
 import urllib.parse
 from datetime import datetime, timedelta
 
-# ==========================================
+# ==========================================ф
 # 1. НАСТРОЙКИ И КОНСТАНТЫ
 # ==========================================
 TOKEN = '8315240372:AAHSLp4ttCPRwysSmEh8r6otZkMQRcJUuUE'
