@@ -7,6 +7,9 @@ from datetime import datetime, timedelta
 TOKEN = '8315240372:AAHSLp4ttCPRwysSmEh8r6otZkMQRcJUuUE'
 CHANNEL_ID = '-1004352959600'
 
+# ==========================================
+# ЗАПРОСЫ
+# ==========================================
 QUERIES_RU = [
     '"Яндекс Карты" OR "Яндекс.Карты" OR "Яндекс Навигатор" OR "2ГИС" OR "ДубльГИС" OR "2GIS"',
     '"Google Карты" OR "Google Maps" OR "СитиГид" OR "CityGuide" OR "Навител" OR "Organic Maps" OR "Maps.me" OR "OsmAnd"',
@@ -50,6 +53,9 @@ QUERIES_MARKETING = [
 REQUIRED_BRANDS = ['яндекс карт', '2гис', 'дубльгис', 'google карт', 'навител', 'ситигид', 'organic maps', 'maps.me', 'османд', 'османд', 'яндекс бизнес', 'google business', 'картографическ']
 BANNED_PHRASES = ['ищу', 'вакансия', 'требуется', 'резюме', 'бренд-лид', 'продакт-менеджер на', 'упаковка карточки', 'оформление карточки', 'как добавить организацию', 'как попасть в карты', 'накрутка отзывов', 'как повысить рейтинг', 'как удалить отзыв', 'как ответить на отзыв', 'ведение карточки', 'оформить карточку', 'продвижение карточки', 'как исправить ошибку в']
 
+# ==========================================
+# ФУНКЦИИ
+# ==========================================
 def safe_text(text):
     if not isinstance(text, str): text = str(text)
     return text.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ').strip()
@@ -71,22 +77,34 @@ def get_telegraph_token():
 def create_telegraph_page(page_title, news_items):
     t_token = get_telegraph_token()
     content = []
+    months = ["", "янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"]
     
     for item in news_items:
         date, title, source, link = item
         safe_link = safe_text(link)
         if not safe_link.startswith('http'): continue
 
-        # ПРАВИЛЬНАЯ СТРУКТУРА TELEGRA.PH (href строго в attrs)
+        # Переводим дату в короткий формат: 18 июл, 26'
+        try:
+            dt = datetime.strptime(date, "%d.%m.%Y")
+            short_date = f"{dt.day} {months[dt.month]}, {str(dt.year)[2:]}'"
+        except:
+            short_date = date
+
+        # НОВАЯ ВЕРСТКА TELEGRA.PH
+        # 1. Дата
+        content.append({"tag": "p", "children": [short_date]})
+        # 2. Заголовок (без ссылки)
+        content.append({"tag": "p", "children": [safe_text(title)]})
+        # 3. Источник (Гиперссылка здесь)
         content.append({
             "tag": "p",
             "children": [
-                safe_text(date), " — ",
-                {"tag": "a", "attrs": {"href": safe_link}, "children": [safe_text(title)]},
-                " (", {"tag": "em", "children": [safe_text(source)]}, ")"
+                {"tag": "a", "attrs": {"href": safe_link}, "children": [safe_text(source)]}
             ]
         })
-        content.append({"tag": "br"})
+        # Разделитель
+        content.append({"tag": "p", "children": ["—"]})
 
     payload_str = json.dumps({
         'access_token': t_token,
@@ -156,26 +174,43 @@ def get_news(queries, lang, gl, do_translate=False, is_marketing=False):
     news_items.sort(key=lambda x: x[0], reverse=True)
     return news_items[:20]
 
+# ==========================================
+# ГЛАВНАЯ ЛОГИКА
+# ==========================================
 region = sys.argv[1]
 period_str = get_week_period()
 
-if region == 'RU':
-    news = get_news(QUERIES_RU, 'ru', 'RU')
-    title_str = f"🇷🇺 Карты в России | {period_str}"
-elif region == 'WORLD':
-    news = get_news(QUERIES_WORLD, 'en', 'US', do_translate=True)
-    title_str = f"🌍 Карты в мире | {period_str}"
+# 1. Отправка шапки (если вызван режим HEADER)
+if region == 'HEADER':
+    send_tg_message(f"↧ Дайджесты за {period_str}")
+    
 else:
-    news = get_news(QUERIES_MARKETING, 'ru', 'RU', is_marketing=True)
-    title_str = f"📺 Маркетинг и карты | {period_str}"
-
-if not news:
-    send_tg_message(title_str + "\n\nНа этой неделе новостей не найдено.")
-else:
-    ph_url = create_telegraph_page(title_str, news)
-    if ph_url:
-        msg = f"<a href='{ph_url}'>{title_str} ↧</a>"
-        send_tg_message(msg)
+    # 2. Формируем заголовки (без дат, они теперь только в заголовке Telegra.ph)
+    if region == 'RU':
+        news = get_news(QUERIES_RU, 'ru', 'RU')
+        tg_title = "🇷🇺"
+        tg_link_text = "Карты в России ↧"
+        ph_title = f"🇷🇺 Карты в России | {period_str}"
+    elif region == 'WORLD':
+        news = get_news(QUERIES_WORLD, 'en', 'US', do_translate=True)
+        tg_title = "🌍"
+        tg_link_text = "Карты в мире ↧"
+        ph_title = f"🌍 Карты в мире | {period_str}"
     else:
-        text = title_str + "\n\n" + "\n\n".join([f"<b>{d}</b>\n{t}\n{s} | <a href='{l}'>Читать</a>" for d, t, s, l in news])
-        send_tg_message(text)
+        news = get_news(QUERIES_MARKETING, 'ru', 'RU', is_marketing=True)
+        tg_title = "📺"
+        tg_link_text = "Маркетинг и карты ↧"
+        ph_title = f"📺 Маркетинг и карты | {period_str}"
+
+    # Если нет новостей - просто пропускаем пост, чтобы не ломать дизайн в ТГ
+    if not news:
+        print("Новостей нет, пост пропущен.")
+    else:
+        ph_url = create_telegraph_page(ph_title, news)
+        if ph_url:
+            # ХАК ДЛЯ ПОДЧЕРКИВАНИЯ: Склеиваем эмодзи и тег ссылки БЕЗ пробела
+            msg = f"{tg_title}<a href='{ph_url}'>{tg_link_text}</a>"
+            send_tg_message(msg)
+        else:
+            text = f"{tg_title} {tg_link_text}\n\n" + "\n\n".join([f"<b>{d}</b>\n{t}\n{s} | <a href='{l}'>Читать</a>" for d, t, s, l in news])
+            send_tg_message(text)
