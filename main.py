@@ -207,4 +207,180 @@ def calculate_score(article):
     
     for category, (words, points) in word_lists.items():
         for word in words:
-            if re.search(r'\
+            if re.search(r'\b' + re.escape(word) + r'\b', text, re.IGNORECASE):
+                score += points
+                reasons.append(f"+{points} {word}")
+                break # Достаточно одного совпадения на категорию
+
+    # Бонусы/Штрафы за источник
+    is_good = any(good in source or good in domain for good in GOOD_SOURCES)
+    if is_good:
+        score += 2
+        reasons.append("+2 Источник из белого списка")
+
+    return score, " | ".join(reasons) if reasons else "Нет релевантных слов"
+
+# ==========================================
+# 7. УДАЛЕНИЕ ДУБЛИКАТОВ (difflib)
+# ==========================================
+def remove_duplicates(articles):
+    if not articles: return []
+    
+    # Сортируем по дате (от новых к старым)
+    articles.sort(key=lambda x: x['date'], reverse=True)
+    
+    filtered = []
+    seen_texts = []
+    
+    for article in articles:
+        text_to_compare = article['text'][:300] # Сравниваем только начало текста для скорости
+        is_duplicate = False
+        
+        for seen_text in seen_texts:
+            # SequenceMatcher оценивает похожесть от 0 до 1
+            ratio = difflib.SequenceMatcher(None, autojunk=False).ratio(seen_text, text_to_compare)
+            if ratio >= DUPLICATE_THRESHOLD:
+                is_duplicate = True
+                break
+                
+        if not is_duplicate:
+            filtered.append(article)
+            seen_texts.append(text_to_compare)
+            
+    return filtered
+
+# ==========================================
+# ОПРЕДЕЛЕНИЕ РАЗДЕЛА
+# ==========================================
+def determine_section(article):
+    text = article['text'].lower()
+    source = article['source'].lower()
+    domain = article['domain'].lower()
+    
+    # Маркетинг: жесткие триггеры
+    mkt_keywords = ['рекламная кампания', 'спецпроект для', 'медиаплан', 'воронка продаж', 'лидогенерация']
+    for kw in mkt_keywords:
+        if kw in text:
+            return 'MARKETING'
+            
+    # Россия: либо домен RU, либо русские слова, но не маркетинг
+    ru_markers = ['карт', 'навигац', 'геосервис', '2гис', 'яндекс', 'ситигид', 'навител', 'османд']
+    if any(marker in text for marker in ru_markers):
+        return 'RU'
+        
+    # Если ничего не совпало, относим к миру
+    return 'WORLD'
+
+# ==========================================
+# 8. СБОРКА И ФИЛЬТРАЦИЯ (Главная логика)
+# ==========================================
+def process_feed(feed_url):
+    print(f"Получаем RSS: {feed_url[:50]}...")
+    feed = fetch_rss(feed_url)
+    if not feed: return []
+    
+    articles = []
+    for entry in feed.entries:
+        parsed = parse_entry(entry)
+        if parsed:
+            articles.append(parsed)
+    print(f"Получено {len(articles)} статей.")
+    return articles
+
+def filter_and_score(articles):
+    filtered = []
+    debug_logs = []
+    
+    for article in articles:
+        score, reason = calculate_score(article)
+        
+        if score < MIN_SCORE:
+            debug_logs.append(f"  ❌ Отклонено (Score: {score}). Причина: {reason} -> {article['title'][:40]}...")
+            continue
+            
+        article['score'] = score
+        filtered.append(article)
+        
+    print(f"После фильтрации осталось: {len(filtered)} статей.")
+    if debug_logs:
+        print("\n--- Лог отладки (только если включен DEBUG) ---")
+        for log in debug_logs: print(log)
+    
+    return filtered
+
+# ==========================================
+# 9. ГЛАВНАЯ ЛОГИКА
+# ==========================================
+region = sys.argv[1]
+period_str = get_week_period()
+
+if region == 'HEADER':
+    send_tg_message(f"↧ Дайджест за {period_str} (Test Scoring Algorithm)")
+    
+else:
+    if region == 'RU':
+        feeds = RSS_FEEDS_RU
+        tg_emoji = "🇷🇺"
+        tg_text = "Россия"
+        ph_title = f"🇷🇺 Россия | {period_str} (Test Scoring)"
+    elif region == 'WORLD':
+        feeds = RSS_FEEDS_WORLD
+        tg_emoji = "🌍"
+        tg_text = "Мир" 
+        ph_title = f"🌍 Мир | {period_str} (Test Scoring)"
+    else:
+        feeds = RSS_FEEDS_MARKETING
+        tg_emoji = "📺"
+        tg_text = "Маркетинг"
+        ph_title = f"📺 Маркетинг | {period_str} (Test Scoring)"
+
+    # 1. Сбор
+    print(f"\n=== ЗАПУСК МОДЕЛИ СКОРИНГА ДЛЯ: {region} ===")
+    all_articles = []
+    seen_links = set()
+    
+    for feed in feeds:
+        articles = process_feed(feed)
+        for a in articles:
+            if a['link'] not in seen_links:
+                seen_links.add(a['link'])
+                all_articles.append(a)
+                
+    # 2. Фильтрация и скоринг
+    scored_articles = filter_and_score(all_articles)
+    
+    # 3. Удаление дубликатов
+    deduplicated = remove_duplicates(scored_articles)
+    print(f"После удаления дубликатов осталось: {len(deduplicated)} статей.")
+    
+    # 4. Автоопределение разделов (заменяет жесткое разделение в bot.py)
+    for article in deduplicated:
+        article['section'] = determine_section(article)
+    
+    # 5. Сортировка по Score (от лучшего к худшему)
+    deduplicated.sort(key=lambda x: x['score'], reverse=True)
+    
+    # 6. Ограничение количества
+    final_news = deduplicated[:MAX_NEWS]
+    
+    # 7. Форматирование
+    if not final_news:
+        print("Новостей нет, пост пропущен.")
+    else:
+        # Разбиваем по автоопределенным разделам
+        sections = {'RU': [], 'WORLD': [], 'MARKETING': []}
+        for art in final_news:
+            sections[art['section']].append(art)
+            
+        for sec, sec_news in sections.items():
+            if not sec_news: continue
+            
+            ph_title_sec = ph_title.replace("(Test Scoring)", f"({sec})")
+            ph_url = create_telegraph_page(ph_title_sec, sec_news)
+            
+            if ph_url:
+                msg = f"<a href='{ph_url}'>{tg_emoji}</a> <a href='{ph_url}'>{tg_text} ({sec})</a>"
+                send_tg_message(msg)
+            else:
+                text = f"{tg_emoji} {tg_text}\n\n" + "\n\n".join([f"[{a['score']}] <b>{a['date']}</b>\n{a['title']}\n{a['source']} | <a href='{a['link']}'>Читать</a>" for a in sec_news])
+                send_tg_message(text)
