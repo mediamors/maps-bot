@@ -12,23 +12,20 @@ CHANNEL_ID = '-1004352959600'
 # ==========================================
 BLOCKED_DOMAINS = [
     'vietnam.vn', 'cyprusinform.com', 'unian.net', 'golos.ua', 'focus.ua', 
-    'makeuseof.com', 'bgr.com', 'lifehacker.com', 'zdnet.com' # Добавляй сюда нерелевантные инфоцыганские сайты
+    'makeuseof.com', 'bgr.com', 'lifehacker.com', 'zdnet.com'
 ]
 
 # ==========================================
 # 2. СТРОГИЕ ЗАПРОСЫ (ГЛАГОЛЫ И ДЕЙСТВИЯ)
 # ==========================================
-# РФ: Ищем только изменения продуктов
 QUERIES_RU_STRICT = [
     '("Яндекс Карты" OR "Яндекс.Карты" OR "Яндекс Навигатор" OR "2ГИС" OR "ДубльГИС" OR "2GIS") AND ("запустил" OR "обновил" OR "добавил" OR "интегрировал" OR "выпустил" OR "представил" OR "изменил" OR "закрыл" OR "открыл")'
 ]
 
-# МИР: Ищем релизы, партнерства, обновления на английском
 QUERIES_WORLD_STRICT = [
     '("Google Maps" OR "Apple Maps" OR "Waze" OR "Mapbox" OR "Esri" OR "HERE WeGo" OR "TomTom") AND ("launched" OR "announced" OR "updated" OR "added" OR "integrated" OR "banned" OR "partnered" OR "integration" OR "deployment" OR "feature")'
 ]
 
-# МАРКЕТИНГ: Ищем только реальные маркетинговые активности
 QUERIES_MARKETING_STRICT = [
     '("Яндекс Карты" OR "2ГИС" OR "Google Maps") AND ("креативная концепция" OR "спецпроект для" OR "рекламная кампания" OR "BTL-активация" OR "медийный план" OR "медиаплан" OR "охват" OR "таргет в картах" OR "лидогенерация" OR "воронка продаж")'
 ]
@@ -76,7 +73,6 @@ QUERIES_MARKETING_FALLBACK = [
     '("Яндекс Карты" OR "2ГИС" OR "Google Maps") AND ("креативное агентство" OR "медиаплан" OR "спецпроект" OR "кейс" OR "наружная реклама")'
 ]
 
-# Щит для марктингового отступного правила (если агентство не написало бренд в заголовке)
 REQUIRED_BRANDS = ['яндекс карт', '2гис', 'дубльгис', 'google карт', 'навител', 'ситигид', 'organic maps', 'maps.me', 'османд', 'османд', 'яндекс бизнес', 'google business', 'картографическ']
 
 # ==========================================
@@ -171,7 +167,6 @@ def get_news(queries, lang, gl, do_translate=False, apply_shield=False):
             for entry in feed.entries[:15]:
                 link = entry.link
                 
-                # БЛОКИРОВКА МУСОРНЫХ ДОМЕНОВ
                 domain = link.split('/')[2] if len(link.split('/')) > 2 else ""
                 if any(bad in domain for bad in BLOCKED_DOMAINS):
                     continue
@@ -192,7 +187,6 @@ def get_news(queries, lang, gl, do_translate=False, apply_shield=False):
                         clean_title = parts[0].strip()
                         source = parts[1].strip()
                         
-                    # ЩИТ ДЛЯ МАРКЕТИНГА (применяется только в отступном правиле)
                     if apply_shield:
                         title_lower = clean_title.lower()
                         if not any(brand in title_lower for brand in REQUIRED_BRANDS): continue
@@ -213,7 +207,6 @@ def fetch_with_fallback(strict_q, fallback_q, lang, gl, do_translate=False, appl
         print(f"Найдено только {len(news)} статей. Запускаю отступное правило (Расширенный поиск)...")
         fallback_news = get_news(fallback_q, lang, gl, do_translate, apply_shield=apply_shield)
         
-        # Склеиваем результаты, удаляя дубликаты
         seen = set(item[3] for item in news)
         for item in fallback_news:
             if item[3] not in seen:
@@ -223,7 +216,7 @@ def fetch_with_fallback(strict_q, fallback_q, lang, gl, do_translate=False, appl
     return news[:20]
 
 # ==========================================
-# 6. ГЛАВНАЯ ЛОГИКА
+# 6. ГЛАВНАЯ ЛОГИКА (Ссылка перенесена на эмодзи)
 # ==========================================
 region = sys.argv[1]
 period_str = get_week_period()
@@ -234,19 +227,18 @@ if region == 'HEADER':
 else:
     if region == 'RU':
         news = fetch_with_fallback(QUERIES_RU_STRICT, QUERIES_RU_FALLBACK, 'ru', 'RU')
-        tg_title = "🇷🇺"" "
-        tg_link_text = "Россия"
+        tg_emoji = "🇷🇺"
+        tg_text = "Россия"
         ph_title = f"🇷🇺 Россия | {period_str}"
     elif region == 'WORLD':
         news = fetch_with_fallback(QUERIES_WORLD_STRICT, QUERIES_WORLD_FALLBACK, 'en', 'US', do_translate=True)
-        tg_title = "🌍"" "
-        tg_link_text = "Мир" 
+        tg_emoji = "🌍"
+        tg_text = "Мир" 
         ph_title = f"🌍 Мир | {period_str}"
     else:
-        # Маркетинг: Строгий поиск по словам, отступной - по сайтам агентств (включаем Щит)
         news = fetch_with_fallback(QUERIES_MARKETING_STRICT, QUERIES_MARKETING_FALLBACK, 'ru', 'RU', apply_shield=True)
-        tg_title = "📺"" "
-        tg_link_text = "Маркетинг"
+        tg_emoji = "📺"
+        tg_text = "Маркетинг"
         ph_title = f"📺 Маркетинг | {period_str}"
 
     if not news:
@@ -254,8 +246,9 @@ else:
     else:
         ph_url = create_telegraph_page(ph_title, news)
         if ph_url:
-            msg = f"{tg_title}<a href='{ph_url}'>{tg_link_text}</a>"
+            # Весь эмодзи стал кликабельной ссылкой, текст обычный
+            msg = f"<a href='{ph_url}'>{tg_emoji}</a> {tg_text}"
             send_tg_message(msg)
         else:
-            text = f"{tg_title} {tg_link_text}\n\n" + "\n\n".join([f"<b>{d}</b>\n{t}\n{s} | <a href='{l}'>Читать</a>" for d, t, s, l in news])
+            text = f"{tg_emoji} {tg_text}\n\n" + "\n\n".join([f"<b>{d}</b>\n{t}\n{s} | <a href='{l}'>Читать</a>" for d, t, s, l in news])
             send_tg_message(text)
