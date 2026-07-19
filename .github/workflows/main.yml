@@ -14,22 +14,18 @@ jobs:
         python-version: '3.10'
     - run: pip install feedparser requests
     
-    # Шапка
     - name: Send Header
       if: github.event.schedule == '5 7 * * 4' || github.event_name == 'workflow_dispatch'
       run: python main.py HEADER
       
-    # Маркетинг
     - name: Marketing
       if: github.event.schedule == '5 7 * * 4' || github.event_name == 'workflow_dispatch'
       run: python main.py MARKETING
       
-    # РФ
     - name: Russia
-      if: github.event.schedule == '5 7 * * * 4' || github.event_name == 'workflow_dispatch'
-      run: main.py RU
+      if: github.event.schedule == '5 7 * * 4' || github.event_name == 'workflow_dispatch'
+      run: python main.py RU
       
-    # Мир
     - name: World
-      if: github.event.schedule == '5 7 * * * 4' || github.event_name == 'workflow_dispatch'
+      if: github.event.schedule == '5 7 * * 4' || github.event_name == 'workflow_dispatch'
       run: python main.py WORLD
