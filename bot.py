@@ -188,18 +188,18 @@ else:
     # 2. Формируем заголовки (без дат, они теперь только в заголовке Telegra.ph)
     if region == 'RU':
         news = get_news(QUERIES_RU, 'ru', 'RU')
-        tg_title = "🇷🇺"
-        tg_link_text = "Карты в России ↧"
+        tg_title = "🇷🇺"" "
+        tg_link_text = "Карты в России"
         ph_title = f"🇷🇺 Карты в России | {period_str}"
     elif region == 'WORLD':
         news = get_news(QUERIES_WORLD, 'en', 'US', do_translate=True)
-        tg_title = "🌍"
-        tg_link_text = "Карты в мире ↧"
+        tg_title = "🌍"" "
+        tg_link_text = "Карты в мире"
         ph_title = f"🌍 Карты в мире | {period_str}"
     else:
         news = get_news(QUERIES_MARKETING, 'ru', 'RU', is_marketing=True)
-        tg_title = "📺"
-        tg_link_text = "Маркетинг и карты ↧"
+        tg_title = "📺"" "
+        tg_link_text = "Маркетинг и карты"
         ph_title = f"📺 Маркетинг и карты | {period_str}"
 
     # Если нет новостей - просто пропускаем пост, чтобы не ломать дизайн в ТГ
