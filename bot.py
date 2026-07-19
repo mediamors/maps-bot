@@ -7,9 +7,6 @@ from datetime import datetime, timedelta
 TOKEN = '8315240372:AAHSLp4ttCPRwysSmEh8r6otZkMQRcJUuUE'
 CHANNEL_ID = '-1004352959600'
 
-# ==========================================
-# 1. ЗАПРОСЫ ДЛЯ ЧЕТВЕРГА
-# ==========================================
 QUERIES_RU = [
     '"Яндекс Карты" OR "Яндекс.Карты" OR "Яндекс Навигатор" OR "2ГИС" OR "ДубльГИС" OR "2GIS"',
     '"Google Карты" OR "Google Maps" OR "СитиГид" OR "CityGuide" OR "Навител" OR "Organic Maps" OR "Maps.me" OR "OsmAnd"',
@@ -23,9 +20,6 @@ QUERIES_WORLD = [
     '"KakaoMap" OR "Naver Map" OR "Baidu Maps" OR "Gaode Maps" OR "Amap" OR "Navitime" OR "MapmyIndia" OR "GrabMaps" OR "Gojek Maps" OR "OpenStreetMap"'
 ]
 
-# ==========================================
-# 2. ЗАПРОСЫ ДЛЯ ПОНЕДЕЛЬНИКА (50+ АГЕНТСТВ)
-# ==========================================
 QUERIES_MARKETING = [
     'site:sostav.ru OR site:slon.ru OR site:lookatme.ru ("Яндекс Карты" OR "2ГИС" OR "Google Карты")',
     'site:roistat.com OR site:seonews.ru OR site:clubber.ru OR site:metodmedia.ru ("Яндекс Карты" OR "2ГИС")',
@@ -53,22 +47,12 @@ QUERIES_MARKETING = [
     '("Яндекс Карты" OR "2ГИС" OR "Google Maps") AND ("креативное агентство" OR "медиаплан" OR "спецпроект" OR "кейс" OR "наружная реклама")'
 ]
 
-# ==========================================
-# 3. ФИЛЬТРЫ
-# ==========================================
 REQUIRED_BRANDS = ['яндекс карт', '2гис', 'дубльгис', 'google карт', 'навител', 'ситигид', 'organic maps', 'maps.me', 'османд', 'османд', 'яндекс бизнес', 'google business', 'картографическ']
 BANNED_PHRASES = ['ищу', 'вакансия', 'требуется', 'резюме', 'бренд-лид', 'продакт-менеджер на', 'упаковка карточки', 'оформление карточки', 'как добавить организацию', 'как попасть в карты', 'накрутка отзывов', 'как повысить рейтинг', 'как удалить отзыв', 'как ответить на отзыв', 'ведение карточки', 'оформить карточку', 'продвижение карточки', 'как исправить ошибку в']
 
-# ==========================================
-# 4. ФУНКЦИИ ОФОРМЛЕНИЯ И БЕЗОПАСНОСТИ
-# ==========================================
 def safe_text(text):
-    """КРИТИЧЕСКИ ВАЖНО: Очищает текст от невидимых символов, которые ломают JSON и ссылки в Telegra.ph"""
-    if not isinstance(text, str):
-        text = str(text)
-    # Убираем переносы строк, табы и лишние пробелы, которые рвут структуру Telegra.ph
-    text = text.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
-    return text.strip()
+    if not isinstance(text, str): text = str(text)
+    return text.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ').strip()
 
 def get_week_period():
     today = datetime.now()
@@ -84,65 +68,40 @@ def get_telegraph_token():
     r = requests.get('https://api.telegra.ph/createAccount', params={'short_name': 'MapsPMM_Digest', 'author_name': 'Maps Digest'})
     return r.json()['result']['access_token']
 
-def create_telegraph_page(page_title, description, news_items):
+def create_telegraph_page(page_title, news_items):
     t_token = get_telegraph_token()
     content = []
     
-    # 1. Добавляем короткое описание первым абзацем
-    content.append({
-        "tag": "p",
-        "children": [{"tag": "em", "children": [safe_text(description)]}]
-    })
-
-    # 2. Формируем список новостей со ссылками
     for item in news_items:
         date, title, source, link = item
-        
-        # Безопасная очистка ВСЕХ элементов
-        safe_date = safe_text(date)
-        safe_title = safe_text(title)
-        safe_source = safe_text(source)
         safe_link = safe_text(link)
-        
-        # Пропускаем если ссылка сломана
-        if not safe_link.startswith('http'): 
-            continue
+        if not safe_link.startswith('http'): continue
 
-        # Строго собираем узел ссылки
+        # ПРАВИЛЬНАЯ СТРУКТУРА TELEGRA.PH (href строго в attrs)
         content.append({
             "tag": "p",
             "children": [
-                safe_date, " — ",
-                {"tag": "a", "href": safe_link, "children": [safe_title]},
-                " (", {"tag": "em", "children": [safe_source]}, ")"
+                safe_text(date), " — ",
+                {"tag": "a", "attrs": {"href": safe_link}, "children": [safe_text(title)]},
+                " (", {"tag": "em", "children": [safe_text(source)]}, ")"
             ]
         })
         content.append({"tag": "br"})
 
-    # 3. МАНУАЛЬНАЯ И БЕЗОПАСНАЯ УПАКОВКА В JSON
-    # Используем ensure_ascii=False, чтобы русские буквы не ломали API
-    payload_dict = {
+    payload_str = json.dumps({
         'access_token': t_token,
         'title': safe_text(page_title), 
         'author_name': 'Maps PMM',
         'content': content,
         'return_content': False
-    }
+    }, ensure_ascii=False).encode('utf-8')
     
-    # Конвертируем в строку JSON вручную для 100% контроля
-    payload_str = json.dumps(payload_dict, ensure_ascii=False).encode('utf-8')
-    
-    r = requests.post(
-        'https://api.telegra.ph/createPage', 
-        data=payload_str, 
-        headers={'Content-Type': 'application/json; charset=utf-8'}
-    )
+    r = requests.post('https://api.telegra.ph/createPage', data=payload_str, headers={'Content-Type': 'application/json; charset=utf-8'})
     
     if r.status_code == 200 and r.json()['ok']:
         return r.json()['result']['url']
-    else:
-        print(f"ОШИБКА TELEGRA.PH API: {r.text}")
-        return None
+    print(f"TELEGRA.PH ERROR: {r.text}")
+    return None
 
 def translate_to_ru(text):
     try:
@@ -153,8 +112,7 @@ def translate_to_ru(text):
             translated = response.text.split('<div class="result-container">')[1].split('</div>')[0]
             import re
             return re.sub('<[^<]+?>', '', translated).strip()
-    except:
-        pass
+    except: pass
     return text
 
 def send_tg_message(text):
@@ -162,9 +120,6 @@ def send_tg_message(text):
     payload = {"chat_id": CHANNEL_ID, "text": text, "parse_mode": "HTML", "disable_web_page_preview": True}
     requests.post(url, json=payload)
 
-# ==========================================
-# 5. СБОР НОВОСТЕЙ
-# ==========================================
 def get_news(queries, lang, gl, do_translate=False, is_marketing=False):
     week_ago = datetime.now() - timedelta(days=7)
     news_items = []
@@ -173,7 +128,6 @@ def get_news(queries, lang, gl, do_translate=False, is_marketing=False):
     for query in queries:
         encoded_query = requests.utils.quote(query)
         url = f"https://news.google.com/rss/search?q={encoded_query}&hl={lang}&gl={gl}&ceid={gl}:{lang}"
-        
         try:
             feed = feedparser.parse(url)
             for entry in feed.entries[:15]:
@@ -184,7 +138,6 @@ def get_news(queries, lang, gl, do_translate=False, is_marketing=False):
                         if pub_dt < week_ago: continue
                         pub_date = pub_dt.strftime("%d.%m.%Y")
                     except: continue
-                        
                     title = entry.title
                     link = entry.link
                     source = "Источник"
@@ -193,52 +146,36 @@ def get_news(queries, lang, gl, do_translate=False, is_marketing=False):
                         parts = title.rsplit(" - ", 1)
                         clean_title = parts[0].strip()
                         source = parts[1].strip()
-
                     if is_marketing:
                         title_lower = clean_title.lower()
                         if not any(brand in title_lower for brand in REQUIRED_BRANDS): continue
                         if any(bad in title_lower for bad in BANNED_PHRASES): continue
-
-                    if do_translate:
-                        clean_title = translate_to_ru(clean_title)
-                        
+                    if do_translate: clean_title = translate_to_ru(clean_title)
                     news_items.append((pub_date, clean_title, source, link))
         except: pass
-            
     news_items.sort(key=lambda x: x[0], reverse=True)
     return news_items[:20]
 
-# ==========================================
-# 6. ГЛАВНАЯ ЛОГИКА
-# ==========================================
 region = sys.argv[1]
 period_str = get_week_period()
 
 if region == 'RU':
     news = get_news(QUERIES_RU, 'ru', 'RU')
     title_str = f"🇷🇺 Карты в России | {period_str}"
-    desc_str = "Новости сервисов карт в РФ"
 elif region == 'WORLD':
     news = get_news(QUERIES_WORLD, 'en', 'US', do_translate=True)
     title_str = f"🌍 Карты в мире | {period_str}"
-    desc_str = "Новости сервисов карт в мире"
 else:
     news = get_news(QUERIES_MARKETING, 'ru', 'RU', is_marketing=True)
     title_str = f"📺 Маркетинг и карты | {period_str}"
-    desc_str = "Новости маркетинга по картографическим сервисам РФ"
 
 if not news:
     send_tg_message(title_str + "\n\nНа этой неделе новостей не найдено.")
 else:
-    print("Создаю страницу на Telegra.ph...")
-    ph_url = create_telegraph_page(title_str, desc_str, news)
-    
+    ph_url = create_telegraph_page(title_str, news)
     if ph_url:
-        # Вся строка ссылкой + стрелка
         msg = f"<a href='{ph_url}'>{title_str} ↧</a>"
         send_tg_message(msg)
-        print("Успех! Ссылки гарантированно в статье.")
     else:
-        print("Критическая ошибка Telegra.ph, отправляю текстом в ТГ.")
         text = title_str + "\n\n" + "\n\n".join([f"<b>{d}</b>\n{t}\n{s} | <a href='{l}'>Читать</a>" for d, t, s, l in news])
         send_tg_message(text)
