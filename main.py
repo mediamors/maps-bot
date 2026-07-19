@@ -13,8 +13,12 @@ from datetime import datetime, timedelta
 TOKEN = '8315240372:AAHSLp4ttCPRwysSmEh8r6otZkMQRcJUuUE'
 CHANNEL_ID = '-1004352959600'
 
+# ИЗМЕНЕНО: Раздельные лимиты для каждого раздела
+MAX_NEWS_RU = 30
+MAX_NEWS_WORLD = 10
+MAX_NEWS_MARKETING = 30
+
 MIN_SCORE = 2              # Порог скоринга
-MAX_NEWS = 10              # Максимум новостей на раздел
 DUPLICATE_THRESHOLD = 0.65 # Порог похожести для удаления дублей
 REQUEST_TIMEOUT = 15       # Таймаут для запросов к RSS
 
@@ -27,7 +31,7 @@ MAP_WORDS = [
 ]
 NAVIGATION_WORDS = ['навигатор', 'navigator', 'маршрутизатор', 'gps']
 AI_WORDS = ['ии', 'ai', 'нейросет', 'машинное обучение', 'gpt', 'gemini', 'llm']
-MARKETING_WORDS = ['маркетинг', 'реклам', 'advertis', 'креатив', 'спецпроект', 'кейс', 'лидогенерация', 'таргет', 'воронка', 'медиаплан', 'охват', 'btl']
+MARKETING_WORDS = ['маркетинг', 'реклам', 'advertis', 'креатив', 'спецпроект', 'кейс', 'лидогенерация', 'таргет', 'воронка', 'медиаплан', 'охват', 'btl', 'репутаци']
 BAD_WORDS = [
     'android', 'pixel', 'смартфон', 'телефон', 'gmail', 'chrome', 'youtube', 'workspace', 
     'google cloud', 'gemini app', 'google search', 'seo', 'поиск google', 'play market', 
@@ -35,6 +39,10 @@ BAD_WORDS = [
     'я помню те годы', 'полиция выступает против', 'проблем с картами', 'как настроить', 
     'лучшее приложение', 'руководство', 'сравнивал', 'топ-', 'топ '
 ]
+BAD_MARKETING_PHRASES = [
+    'накрутка отзыв', 'накрутить отзыв', 'удаление отзыв', 'удалить отзыв', 'купить отзыв', 'генерация отзыв', 'вывели отзыв', 'вывод отзыв'
+]
+
 GOOD_SOURCES = [
     'sostav.ru', 'vc.ru', 'habr.com', 'rbc.ru', 'vedomosti.ru', 'forbes.ru', 'tass.ru',
     'reuters.com', 'bloomberg.com', 'techcrunch.com', 'theverge.com', '9to5google.com',
@@ -47,12 +55,13 @@ BAD_SOURCES = [
 ]
 
 # ==========================================
-# 3. RSS ИСТОЧНИКИ (Интегрированы запросы из bot.py)
+# 3. RSS ИСТОЧНИКИ
 # ==========================================
 RSS_FEEDS_RU = [
     "https://news.google.com/rss/search?q=(%22Яндекс+Карты%22+OR+%22Яндекс.Карты%22+OR+%22Яндекс+Навигатор%22+OR+%222ГИС%22+OR+%22ДубльГИС%22+OR+%222GIS%22)+AND+(%22запустил%22+OR+%22обновил%22+OR+%22добавил%22+OR+%22интегрировал%22+OR+%22выпустил%22+OR+%22представил%22+OR+%22изменил%22+OR+%22закрыл%22+OR+%22открыл%22)&hl=ru&gl=RU&ceid=RU:ru",
     "https://news.google.com/rss/search?q=%22Яндекс+Карты%22+OR+%22Яндекс.Карты%22+OR+%22Яндекс+Навигатор%22+OR+%222ГИС%22+OR+%22ДубльГИС%22+OR+%222GIS%22&hl=ru&gl=RU&ceid=RU:ru",
-    "https://news.google.com/rss/search?q=%22Google+Карты%22+OR+%22Google+Maps%22+OR+%22СитиГид%22+OR+%22CityGuide%22+OR+%22Навител%22+OR+%22Organic+Maps%22+OR+%22Maps.me%22+OR+%22OsmAnd%22+OR+%22Яндекс+Бизнес%22+OR+%22Google+Business%22+OR+%22Foursquare%22+OR+%22картографический+сервис%22+OR+%22геосервис%22&hl=ru&gl=RU&ceid=RU:ru"
+    "https://news.google.com/rss/search?q=%22Google+Карты%22+OR+%22Google+Maps%22+OR+%22СитиГид%22+OR+%22CityGuide%22+OR+%22Навител%22+OR+%22Organic+Maps%22+OR+%22Maps.me%22+OR+%22OsmAnd%22+OR+%22Яндекс+Бизнес%22+OR+%22Google+Business%22+OR+%22Foursquare%22+OR+%22картографический+сервис%22+OR+%22геосервис%22&hl=ru&gl=RU&ceid=RU:ru",
+    "https://news.google.com/rss/search?q=(%22Яндекс+Карты%22+OR+%222ГИС%22)+AND+(%22рейтинг%22+OR+%22функция%22+OR+%22обновление%22+OR+%22интерфейс%22+OR+%22профиль+компании%22)&hl=ru&gl=RU&ceid=RU:ru"
 ]
 
 RSS_FEEDS_WORLD = [
@@ -63,7 +72,8 @@ RSS_FEEDS_WORLD = [
 
 RSS_FEEDS_MARKETING = [
     "https://news.google.com/rss/search?q=(%22Яндекс+Карты%22+OR+%222ГИС%22+OR+%22Google+Maps%22)+AND+(%22креативная+концепция%22+OR+%22спецпроект+для%22+OR+%22рекламная+кампания%22+OR+%22BTL-активация%22+OR+%22медийный+план%22+OR+%22медиаплан%22+OR+%22охват%22+OR+%22таргет+в+картах%22+OR+%22лидогенерация%22+OR+%22воронка+продаж%22)&hl=ru&gl=RU&ceid=RU:ru",
-    "https://news.google.com/rss/search?q=(%22Яндекс+Карты%22+OR+%222ГИС%22+OR+%22Google+Карты%22)+AND+(%22креативное+агентство%22+OR+%22медиаплан%22+OR+%22спецпроект%22+OR+%22кейс%22+OR+%22наружная+реклама%22)&hl=ru&gl=RU&ceid=RU:ru"
+    "https://news.google.com/rss/search?q=(%22Яндекс+Карты%22+OR+%222ГИС%22+OR+%22Google+Карты%22)+AND+(%22креативное+агентство%22+OR+%22медиаплан%22+OR+%22спецпроект%22+OR+%22кейс%22+OR+%22наружная+реклама%22)&hl=ru&gl=RU&ceid=RU:ru",
+    "https://news.google.com/rss/search?q=(%22Яндекс+Карты%22+OR+%222ГИС%22+OR+%22Google+Карты%22)+AND+(%22локальный+маркетинг%22+OR+%22репутация%22+OR+%22геомаркетинг%22+OR+%22карточка+предприятия%22+OR+%22профиль+компании%22)&hl=ru&gl=RU&ceid=RU:ru"
 ]
 
 # ==========================================
@@ -194,7 +204,7 @@ def parse_entry(entry):
         return None
 
 # ==========================================
-# 6. СКОРИНГ (С учетом региона)
+# 6. СКОРИНГ
 # ==========================================
 def calculate_score(article, region='RU'):
     text = article['text']
@@ -211,11 +221,11 @@ def calculate_score(article, region='RU'):
             score -= 10
             reasons.append(f"Мусорное слово: {bad_word}")
             
-    # НОВОЕ: Специфичный фильтр стоп-слов для Маркетинга (Отзывы во всех падежах)
     if region == 'MARKETING':
-        if re.search(r'(?i)\bотзыв\w*', text):
-            score -= 20 # Жесткий бан
-            reasons.append("Стоп-слово Маркетинг: отзыв(ы)")
+        for bad_phrase in BAD_MARKETING_PHRASES:
+            if bad_phrase.lower() in text:
+                score -= 20 
+                reasons.append(f"Стоп-фраза Маркетинг: {bad_phrase}")
             
     word_lists = {
         'map': (MAP_WORDS, 3),
@@ -283,7 +293,7 @@ def filter_and_score(articles, region):
     filtered = []
     
     for article in articles:
-        score, reason = calculate_score(article, region) # Передаем регион
+        score, reason = calculate_score(article, region)
         
         if score < MIN_SCORE:
             print(f"  ❌ Отклонено (Score: {score}). {article['title'][:50]}...")
@@ -310,16 +320,19 @@ else:
         tg_emoji = "🪆"
         tg_text = "Россия"
         ph_title = f"🇷🇺 Россия | {period_str}"
+        max_news_limit = MAX_NEWS_RU      # Применяем Топ-30
     elif region == 'WORLD':
         feeds = RSS_FEEDS_WORLD
         tg_emoji = "🌍"
         tg_text = "Мир" 
         ph_title = f"🌍 Мир | {period_str}"
+        max_news_limit = MAX_NEWS_WORLD   # Оставляем Топ-10
     else:
         feeds = RSS_FEEDS_MARKETING
         tg_emoji = "📺"
         tg_text = "Маркетинг"
         ph_title = f"📺 Маркетинг | {period_str}"
+        max_news_limit = MAX_NEWS_MARKETING # Применяем Топ-30
 
     print(f"\n=== ЗАПУСК ДЛЯ: {region} ===")
     all_articles = []
@@ -331,19 +344,19 @@ else:
             if a['link'] not in seen_links:
                 seen_links.add(a['link'])
                 
-                # НОВОЕ: Перевод заголовков для раздела МИР до скоринга
                 if region == 'WORLD':
                     print(f"  🌐 Перевод: {a['title'][:40]}...")
                     a['title'] = translate_to_ru(a['title'])
-                    # Обновляем поле text для корректного скоринга на русском
                     a['text'] = f"{a['title']}."
                 
                 all_articles.append(a)
                 
-    scored_articles = filter_and_score(all_articles, region) # Передаем регион
+    scored_articles = filter_and_score(all_articles, region)
     deduplicated = remove_duplicates(scored_articles)
     deduplicated.sort(key=lambda x: x['score'], reverse=True)
-    final_news = deduplicated[:MAX_NEWS]
+    
+    # ИСПОЛЬЗУЕМ ДИНАМИЧЕСКИЙ ЛИМИТ
+    final_news = deduplicated[:max_news_limit]
     
     if not final_news:
         print("Новостей нет, пост пропущен.")
