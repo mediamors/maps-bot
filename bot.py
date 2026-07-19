@@ -227,7 +227,7 @@ if region == 'HEADER':
 else:
     if region == 'RU':
         news = fetch_with_fallback(QUERIES_RU_STRICT, QUERIES_RU_FALLBACK, 'ru', 'RU')
-        tg_emoji = "🇷🇺"
+        tg_emoji = "🪆"
         tg_text = "Россия"
         ph_title = f"🇷🇺 Россия | {period_str}"
     elif region == 'WORLD':
