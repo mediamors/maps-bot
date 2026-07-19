@@ -20,17 +20,25 @@ QUERIES_WORLD = [
     '"KakaoMap" OR "Naver Map" OR "Baidu Maps" OR "Gaode Maps" OR "Amap" OR "Navitime" OR "MapmyIndia" OR "GrabMaps" OR "Gojek Maps" OR "OpenStreetMap"'
 ]
 
-# Запросы для Пн (Ищем по всему интернету связку Бренд + Маркетинг)
+# Запросы для Пн (Разбиты на пары агентств, чтобы Google не сломался)
 QUERIES_MARKETING = [
-    # Ищем прямую рекламу и спецпроекты
-    '("Яндекс Карты" OR "2ГИС" OR "Google Карты") AND (реклама OR "спецпроект" OR "наружная реклама" OR BTL OR "промо-акция")',
-    # Ищем кейсы по продвижению и локальному маркетингу
-    '("Яндекс Карты" OR "2ГИС" OR "Google Maps" OR "Яндекс Бизнес") AND ("локальный маркетинг" OR продвижение OR "лидогенерация" OR "геомаркетинг" OR кейс)',
-    # Ищем новости про инструменты для бизнеса на картах
-    '("Яндекс Бизнес" OR "Google Business Profile" OR "2ГИС Справочник") AND (отзывы OR реклама OR "таргет в картах")'
+    # 1. Главные маркетинговые медиа (проверены, работают)
+    'site:sostav.ru ("Яндекс Карты" OR "2ГИС" OR "Google Карты" OR "Яндекс Бизнес")',
+    'site:vc.ru ("Яндекс Карты" OR "2ГИС" OR "Google Maps")',
+    # 2. Топовые креативные и digital-агентства
+    'site:platov.vc OR site:banda.agency ("Яндекс Карты" OR "2ГИС" OR "Google Maps")',
+    'site:iskra.biz OR site:happyagency.ru ("Яндекс Карты" OR "2ГИС")',
+    # 3. Media и дизайн-платформы
+    'site:lookatme.ru OR site:slon.ru ("Яндекс Карты" OR "2ГИС" OR "Google Карты")',
+    # 4. SEO и IT-маркетинг
+    'site:seonews.ru OR site:clubber.ru OR site:metodmedia.ru ("Яндекс Карты" OR "2ГИС" OR "Google Карты")',
+    # 5. Профильные ассоциации рынка
+    'site:snil.ru OR site:akarussia.ru OR site:digital.ru ("Яндекс Карты" OR "2ГИС")',
+    # 6. Широкая сеть по всему интернету (Ищем слова из рекламы)
+    '("Яндекс Карты" OR "2ГИС" OR "Google Maps") AND ("креативное агентство" OR "медиаплан" OR "спецпроект" OR "кейс" OR "наружная реклама")'
 ]
 
-# СПИСОК СЛОВ-МАРКЕРОВ ДЛЯ "ЩИТА" (Если этого нет в заголовке - новость мусорная)
+# СПИСОК СЛОВ-МАРКЕРОВ ДЛЯ "ЩИТА" (Защита от мусора)
 REQUIRED_BRANDS = [
     'яндекс карт', '2гис', 'дубльгис', 'google карт', 'навител', 
     'ситигид', 'organic maps', 'maps.me', 'османд', 'osmand',
@@ -97,11 +105,9 @@ def get_news(queries, lang, gl, do_translate=False, is_marketing=False):
                         clean_title = parts[0].strip()
                         source = parts[1].strip()
 
-                    # >>> ВОТ ОН, "ЩИТ" ПРОТИВ МУСОРА <<<
-                    # Если это блок маркетинга, проверяем заголовок
+                    # "ЩИТ" ПРОТИВ МУСОРА (включается только для блока маркетинга)
                     if is_marketing:
                         title_lower = clean_title.lower()
-                        # Если ни одно слово из REQUIRED_BRANDS не найдено в заголовке — пропускаем!
                         if not any(brand in title_lower for brand in REQUIRED_BRANDS):
                             print(f"МУСОР ОТБРОШЕН: {clean_title[:40]}...")
                             continue
@@ -122,15 +128,15 @@ region = sys.argv[1]
 if region == 'RU':
     news = get_news(QUERIES_RU, 'ru', 'RU')
     header = "🇷🇺 <b>Карты РФ</b>\n\n"
-    hashtags = "\n\n#КартыРФ #ЯндексКарты #2ГИС #Геосервисы #Навигация"
+    hashtags = "\n\n#новостирф"
 elif region == 'WORLD':
     news = get_news(QUERIES_WORLD, 'en', 'US', do_translate=True)
     header = "🌍 <b>Карты в мире</b>\n\n"
-    hashtags = "\n\n#КартыМира #GoogleMaps #AppleMaps #Mapbox #TechNews"
+    hashtags = "\n\n#новостимир"
 else:
     news = get_news(QUERIES_MARKETING, 'ru', 'RU', is_marketing=True)
-    header = "🧩 <b>Маркетинг и индустрия карт</b>\n\n"
-    hashtags = "\n\n#МаркетингКарт #ГеоРеклама #ЛокальныйМаркетинг #Спецпроекты #BTL"
+    header = "📺 <b>Маркетинг в индустрии</b>\n\n"
+    hashtags = "\n\n#реклама"
 
 if not news:
     final_text = header + "На этой неделе новостей не найдено." + hashtags
