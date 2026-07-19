@@ -235,18 +235,18 @@ else:
     if region == 'RU':
         news = fetch_with_fallback(QUERIES_RU_STRICT, QUERIES_RU_FALLBACK, 'ru', 'RU')
         tg_title = "🇷🇺"" "
-        tg_link_text = "Россия"
+        tg_link_text = "🇷🇺""Россия"
         ph_title = f"🇷🇺 Россия | {period_str}"
     elif region == 'WORLD':
         news = fetch_with_fallback(QUERIES_WORLD_STRICT, QUERIES_WORLD_FALLBACK, 'en', 'US', do_translate=True)
         tg_title = "🌍"" "
-        tg_link_text = "Мир"
+        tg_link_text = "🌍""Мир" 
         ph_title = f"🌍 Мир | {period_str}"
     else:
         # Маркетинг: Строгий поиск по словам, отступной - по сайтам агентств (включаем Щит)
         news = fetch_with_fallback(QUERIES_MARKETING_STRICT, QUERIES_MARKETING_FALLBACK, 'ru', 'RU', apply_shield=True)
         tg_title = "📺"" "
-        tg_link_text = "Маркетинг"
+        tg_link_text = "📺""Маркетинг"
         ph_title = f"📺 Маркетинг | {period_str}"
 
     if not news:
