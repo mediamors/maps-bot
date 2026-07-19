@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 TOKEN = '8315240372:AAHSLp4ttCPRwysSmEh8r6otZkMQRcJUuUE'
 CHANNEL_ID = '-1004352959600'
 
-MIN_SCORE = 2              # Порог скоринга (2 балла: достаточно упоминания "Навигатор" или "2ГИС")
+MIN_SCORE = 2              # Порог скоринга
 MAX_NEWS = 10              # Максимум новостей на раздел
 DUPLICATE_THRESHOLD = 0.65 # Порог похожести для удаления дублей
 REQUEST_TIMEOUT = 15       # Таймаут для запросов к RSS
@@ -50,27 +50,19 @@ BAD_SOURCES = [
 # 3. RSS ИСТОЧНИКИ (Интегрированы запросы из bot.py)
 # ==========================================
 RSS_FEEDS_RU = [
-    # Строгий поиск (Глаголы и действия)
     "https://news.google.com/rss/search?q=(%22Яндекс+Карты%22+OR+%22Яндекс.Карты%22+OR+%22Яндекс+Навигатор%22+OR+%222ГИС%22+OR+%22ДубльГИС%22+OR+%222GIS%22)+AND+(%22запустил%22+OR+%22обновил%22+OR+%22добавил%22+OR+%22интегрировал%22+OR+%22выпустил%22+OR+%22представил%22+OR+%22изменил%22+OR+%22закрыл%22+OR+%22открыл%22)&hl=ru&gl=RU&ceid=RU:ru",
-    # Отступной запрос 1 (Основные бренды)
     "https://news.google.com/rss/search?q=%22Яндекс+Карты%22+OR+%22Яндекс.Карты%22+OR+%22Яндекс+Навигатор%22+OR+%222ГИС%22+OR+%22ДубльГИС%22+OR+%222GIS%22&hl=ru&gl=RU&ceid=RU:ru",
-    # Отступной запрос 2 (Вторичные бренды и сервисы)
     "https://news.google.com/rss/search?q=%22Google+Карты%22+OR+%22Google+Maps%22+OR+%22СитиГид%22+OR+%22CityGuide%22+OR+%22Навител%22+OR+%22Organic+Maps%22+OR+%22Maps.me%22+OR+%22OsmAnd%22+OR+%22Яндекс+Бизнес%22+OR+%22Google+Business%22+OR+%22Foursquare%22+OR+%22картографический+сервис%22+OR+%22геосервис%22&hl=ru&gl=RU&ceid=RU:ru"
 ]
 
 RSS_FEEDS_WORLD = [
-    # Строгий поиск (Действия на английском)
     "https://news.google.com/rss/search?q=(%22Google+Maps%22+OR+%22Apple+Maps%22+OR+%22Waze%22+OR+%22Mapbox%22+OR+%22Esri%22+OR+%22HERE+WeGo%22+OR+%22TomTom%22)+AND+(%22launched%22+OR+%22announced%22+OR+%22updated%22+OR+%22added%22+OR+%22integrated%22+OR+%22banned%22+OR+%22partnered%22+OR+%22integration%22+OR+%22deployment%22+OR+%22feature%22)&hl=en&gl=US&ceid=US:en",
-    # Отступной запрос 1 (Западные бренды)
     "https://news.google.com/rss/search?q=%22Google+Maps%22+OR+%22Apple+Maps%22+OR+%22Waze%22+OR+%22Foursquare%22+OR+%22HERE+WeGo%22+OR+%22HERE+Technologies%22+OR+%22TomTom%22+OR+%22Sygic%22+OR+%22Mapbox%22+OR+%22Esri%22&hl=en&gl=US&ceid=US:en",
-    # Отступной запрос 2 (Азиатские и другие бренды)
     "https://news.google.com/rss/search?q=%22KakaoMap%22+OR+%22Naver+Map%22+OR+%22Baidu+Maps%22+OR+%22Gaode+Maps%22+OR+%22Amap%22+OR+%22Navitime%22+OR+%22MapmyIndia%22+OR+%22GrabMaps%22+OR+%22Gojek+Maps%22+OR+%22OpenStreetMap%22&hl=en&gl=US&ceid=US:en"
 ]
 
 RSS_FEEDS_MARKETING = [
-    # Строгий поиск (Жесткие маркетинговые триггеры)
     "https://news.google.com/rss/search?q=(%22Яндекс+Карты%22+OR+%222ГИС%22+OR+%22Google+Maps%22)+AND+(%22креативная+концепция%22+OR+%22спецпроект+для%22+OR+%22рекламная+кампания%22+OR+%22BTL-активация%22+OR+%22медийный+план%22+OR+%22медиаплан%22+OR+%22охват%22+OR+%22таргет+в+картах%22+OR+%22лидогенерация%22+OR+%22воронка+продаж%22)&hl=ru&gl=RU&ceid=RU:ru",
-    # Отступной запрос (Широкий маркетинг)
     "https://news.google.com/rss/search?q=(%22Яндекс+Карты%22+OR+%222ГИС%22+OR+%22Google+Карты%22)+AND+(%22креативное+агентство%22+OR+%22медиаплан%22+OR+%22спецпроект%22+OR+%22кейс%22+OR+%22наружная+реклама%22)&hl=ru&gl=RU&ceid=RU:ru"
 ]
 
@@ -142,6 +134,22 @@ def send_tg_message(text):
     requests.post(url, json=payload)
 
 # ==========================================
+# 4.1 ПЕРЕВОДЧИК ДЛЯ РАЗДЕЛА МИР
+# ==========================================
+def translate_to_ru(text):
+    try:
+        url = f"https://translate.google.com/m?sl=en&tl=ru&q={requests.utils.quote(text)}"
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        response = requests.get(url, headers=headers, timeout=10)
+        if '<div class="result-container">' in response.text:
+            translated = response.text.split('<div class="result-container">')[1].split('</div>')[0]
+            clean_translated = re.sub('<[^<]+?>', '', translated).strip()
+            if clean_translated: return clean_translated
+    except: 
+        pass
+    return text
+
+# ==========================================
 # 5. РАБОТА С RSS
 # ==========================================
 def fetch_rss(feed_url):
@@ -186,9 +194,9 @@ def parse_entry(entry):
         return None
 
 # ==========================================
-# 6. СКОРИНГ (Исправленная логика поиска слов)
+# 6. СКОРИНГ (С учетом региона)
 # ==========================================
-def calculate_score(article):
+def calculate_score(article, region='RU'):
     text = article['text']
     source = article['source']
     domain = article['domain']
@@ -199,10 +207,15 @@ def calculate_score(article):
         return -999, "Мусорный домен"
         
     for bad_word in BAD_WORDS:
-        # Ищем точное совпадение плохих фраз
         if re.search(r'(?i)\b' + re.escape(bad_word) + r'\b', text):
             score -= 10
             reasons.append(f"Мусорное слово: {bad_word}")
+            
+    # НОВОЕ: Специфичный фильтр стоп-слов для Маркетинга (Отзывы во всех падежах)
+    if region == 'MARKETING':
+        if re.search(r'(?i)\bотзыв\w*', text):
+            score -= 20 # Жесткий бан
+            reasons.append("Стоп-слово Маркетинг: отзыв(ы)")
             
     word_lists = {
         'map': (MAP_WORDS, 3),
@@ -213,8 +226,6 @@ def calculate_score(article):
     
     for category, (words, points) in word_lists.items():
         for word in words:
-            # ИСПРАВЛЕНО: Убрана правая граница \b. 
-            # Теперь 'map' найдет 'Maps', а 'навигац' найдет 'навигационное'
             if re.search(r'(?i)\b' + re.escape(word), text):
                 score += points
                 reasons.append(f"+{points} {word}")
@@ -228,7 +239,7 @@ def calculate_score(article):
     return score, " | ".join(reasons) if reasons else "Нет релевантных слов"
 
 # ==========================================
-# 7. УДАЛЕНИЕ ДУБЛИКАТОВ (Исправлен вызов difflib)
+# 7. УДАЛЕНИЕ ДУБЛИКАТОВ
 # ==========================================
 def remove_duplicates(articles):
     if not articles: return []
@@ -241,7 +252,6 @@ def remove_duplicates(articles):
         is_duplicate = False
         
         for seen_text in seen_texts:
-            # ИСПРАВЛЕНО: Строки передаются в инициализатор объекта SequenceMatcher
             ratio = difflib.SequenceMatcher(None, seen_text, text_to_compare, autojunk=False).ratio()
             if ratio >= DUPLICATE_THRESHOLD:
                 is_duplicate = True
@@ -269,11 +279,11 @@ def process_feed(feed_url):
     print(f"  -> Получено {len(articles)} статей.")
     return articles
 
-def filter_and_score(articles):
+def filter_and_score(articles, region):
     filtered = []
     
     for article in articles:
-        score, reason = calculate_score(article)
+        score, reason = calculate_score(article, region) # Передаем регион
         
         if score < MIN_SCORE:
             print(f"  ❌ Отклонено (Score: {score}). {article['title'][:50]}...")
@@ -320,9 +330,17 @@ else:
         for a in articles:
             if a['link'] not in seen_links:
                 seen_links.add(a['link'])
+                
+                # НОВОЕ: Перевод заголовков для раздела МИР до скоринга
+                if region == 'WORLD':
+                    print(f"  🌐 Перевод: {a['title'][:40]}...")
+                    a['title'] = translate_to_ru(a['title'])
+                    # Обновляем поле text для корректного скоринга на русском
+                    a['text'] = f"{a['title']}."
+                
                 all_articles.append(a)
                 
-    scored_articles = filter_and_score(all_articles)
+    scored_articles = filter_and_score(all_articles, region) # Передаем регион
     deduplicated = remove_duplicates(scored_articles)
     deduplicated.sort(key=lambda x: x['score'], reverse=True)
     final_news = deduplicated[:MAX_NEWS]
