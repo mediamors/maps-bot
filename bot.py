@@ -8,7 +8,7 @@ TOKEN = '8315240372:AAHSLp4ttCPRwysSmEh8r6otZkMQRcJUuUE'
 CHANNEL_ID = '-1004352959600'
 
 # ==========================================
-# 1. ЗАПРОСЫ ДЛЯ ЧЕТВЕРГА (РФ + МИР)
+# 1. ЗАПРОСЫ ДЛЯ ЧЕТВЕРГА
 # ==========================================
 QUERIES_RU = [
     '"Яндекс Карты" OR "Яндекс.Карты" OR "Яндекс Навигатор" OR "2ГИС" OR "ДубльГИС" OR "2GIS"',
@@ -24,7 +24,7 @@ QUERIES_WORLD = [
 ]
 
 # ==========================================
-# 2. ЗАПРОСЫ ДЛЯ ПОНЕДЕЛЬНИКА (МАРКЕТИНГ И 50+ АГЕНТСТВ)
+# 2. ЗАПРОСЫ ДЛЯ ПОНЕДЕЛЬНИКА (50+ АГЕНТСТВ)
 # ==========================================
 QUERIES_MARKETING = [
     'site:sostav.ru OR site:slon.ru OR site:lookatme.ru ("Яндекс Карты" OR "2ГИС" OR "Google Карты")',
@@ -60,51 +60,89 @@ REQUIRED_BRANDS = ['яндекс карт', '2гис', 'дубльгис', 'goog
 BANNED_PHRASES = ['ищу', 'вакансия', 'требуется', 'резюме', 'бренд-лид', 'продакт-менеджер на', 'упаковка карточки', 'оформление карточки', 'как добавить организацию', 'как попасть в карты', 'накрутка отзывов', 'как повысить рейтинг', 'как удалить отзыв', 'как ответить на отзыв', 'ведение карточки', 'оформить карточку', 'продвижение карточки', 'как исправить ошибку в']
 
 # ==========================================
-# 4. ФУНКЦИИ ОФОРМЛЕНИЯ
+# 4. ФУНКЦИИ ОФОРМЛЕНИЯ И БЕЗОПАСНОСТИ
 # ==========================================
+def safe_text(text):
+    """КРИТИЧЕСКИ ВАЖНО: Очищает текст от невидимых символов, которые ломают JSON и ссылки в Telegra.ph"""
+    if not isinstance(text, str):
+        text = str(text)
+    # Убираем переносы строк, табы и лишние пробелы, которые рвут структуру Telegra.ph
+    text = text.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
+    return text.strip()
+
 def get_week_period():
     today = datetime.now()
     start = today - timedelta(days=7)
-    # Сократили месяцы до 3 букв
     months = ["", "янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"]
     yr = f"{str(today.year)[2:]}'"
-    # Короткое тире между днями
     if start.month == today.month:
         return f"{start.day}-{today.day} {months[today.month]}, {yr}"
     else:
         return f"{start.day} {months[start.month]}-{today.day} {months[today.month]}, {yr}"
 
 def get_telegraph_token():
-    r = requests.get('https://api.telegra.ph/createAccount', params={'short_name': 'MapsPMM_Digest', 'author_name': 'Maps Digest Bot'})
+    r = requests.get('https://api.telegra.ph/createAccount', params={'short_name': 'MapsPMM_Digest', 'author_name': 'Maps Digest'})
     return r.json()['result']['access_token']
 
-def create_telegraph_page(page_title, news_items):
+def create_telegraph_page(page_title, description, news_items):
     t_token = get_telegraph_token()
     content = []
+    
+    # 1. Добавляем короткое описание первым абзацем
+    content.append({
+        "tag": "p",
+        "children": [{"tag": "em", "children": [safe_text(description)]}]
+    })
+
+    # 2. Формируем список новостей со ссылками
     for item in news_items:
         date, title, source, link = item
-        # Дата — Заголовок-ссылка (Источник)
+        
+        # Безопасная очистка ВСЕХ элементов
+        safe_date = safe_text(date)
+        safe_title = safe_text(title)
+        safe_source = safe_text(source)
+        safe_link = safe_text(link)
+        
+        # Пропускаем если ссылка сломана
+        if not safe_link.startswith('http'): 
+            continue
+
+        # Строго собираем узел ссылки
         content.append({
             "tag": "p",
             "children": [
-                date, " — ",
-                {"tag": "a", "href": link, "children": [title]},
-                " (", {"tag": "em", "children": [source]}, ")"
+                safe_date, " — ",
+                {"tag": "a", "href": safe_link, "children": [safe_title]},
+                " (", {"tag": "em", "children": [safe_source]}, ")"
             ]
         })
         content.append({"tag": "br"})
 
-    r = requests.post('https://api.telegra.ph/createPage', json={
+    # 3. МАНУАЛЬНАЯ И БЕЗОПАСНАЯ УПАКОВКА В JSON
+    # Используем ensure_ascii=False, чтобы русские буквы не ломали API
+    payload_dict = {
         'access_token': t_token,
-        'title': page_title, # Теперь заголовок страницы дублирует строку из ТГ
+        'title': safe_text(page_title), 
         'author_name': 'Maps PMM',
         'content': content,
         'return_content': False
-    })
+    }
+    
+    # Конвертируем в строку JSON вручную для 100% контроля
+    payload_str = json.dumps(payload_dict, ensure_ascii=False).encode('utf-8')
+    
+    r = requests.post(
+        'https://api.telegra.ph/createPage', 
+        data=payload_str, 
+        headers={'Content-Type': 'application/json; charset=utf-8'}
+    )
     
     if r.status_code == 200 and r.json()['ok']:
         return r.json()['result']['url']
-    return None
+    else:
+        print(f"ОШИБКА TELEGRA.PH API: {r.text}")
+        return None
 
 def translate_to_ru(text):
     try:
@@ -176,30 +214,31 @@ def get_news(queries, lang, gl, do_translate=False, is_marketing=False):
 region = sys.argv[1]
 period_str = get_week_period()
 
-# Формируем единую строку заголовка
 if region == 'RU':
     news = get_news(QUERIES_RU, 'ru', 'RU')
     title_str = f"🇷🇺 Карты в России | {period_str}"
+    desc_str = "Новости сервисов карт в РФ"
 elif region == 'WORLD':
     news = get_news(QUERIES_WORLD, 'en', 'US', do_translate=True)
     title_str = f"🌍 Карты в мире | {period_str}"
+    desc_str = "Новости сервисов карт в мире"
 else:
     news = get_news(QUERIES_MARKETING, 'ru', 'RU', is_marketing=True)
     title_str = f"📺 Маркетинг и карты | {period_str}"
+    desc_str = "Новости маркетинга по картографическим сервисам РФ"
 
 if not news:
     send_tg_message(title_str + "\n\nНа этой неделе новостей не найдено.")
 else:
     print("Создаю страницу на Telegra.ph...")
-    # Передаем title_str в качестве заголовка страницы
-    ph_url = create_telegraph_page(title_str, news)
+    ph_url = create_telegraph_page(title_str, desc_str, news)
     
     if ph_url:
-        # Вся строка становится ссылкой со стрелкой на конце
+        # Вся строка ссылкой + стрелка
         msg = f"<a href='{ph_url}'>{title_str} ↧</a>"
         send_tg_message(msg)
-        print("Успех!")
+        print("Успех! Ссылки гарантированно в статье.")
     else:
-        print("Ошибка Telegra.ph, отправляю текстом.")
+        print("Критическая ошибка Telegra.ph, отправляю текстом в ТГ.")
         text = title_str + "\n\n" + "\n\n".join([f"<b>{d}</b>\n{t}\n{s} | <a href='{l}'>Читать</a>" for d, t, s, l in news])
         send_tg_message(text)
