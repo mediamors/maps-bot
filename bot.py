@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 TOKEN = '8315240372:AAHSLp4ttCPRwysSmEh8r6otZkMQRcJUuUE'
 CHANNEL_ID = '-1004352959600'
 
-# Запросы для Чт (работают идеально)
 QUERIES_RU = [
     '"Яндекс Карты" OR "Яндекс.Карты" OR "Яндекс Навигатор" OR "2ГИС" OR "ДубльГИС" OR "2GIS"',
     '"Google Карты" OR "Google Maps" OR "СитиГид" OR "CityGuide" OR "Навител" OR "Organic Maps" OR "Maps.me" OR "OsmAnd"',
@@ -20,30 +19,38 @@ QUERIES_WORLD = [
     '"KakaoMap" OR "Naver Map" OR "Baidu Maps" OR "Gaode Maps" OR "Amap" OR "Navitime" OR "MapmyIndia" OR "GrabMaps" OR "Gojek Maps" OR "OpenStreetMap"'
 ]
 
-# Запросы для Пн (Разбиты на пары агентств, чтобы Google не сломался)
 QUERIES_MARKETING = [
-    # 1. Главные маркетинговые медиа (проверены, работают)
     'site:sostav.ru ("Яндекс Карты" OR "2ГИС" OR "Google Карты" OR "Яндекс Бизнес")',
     'site:vc.ru ("Яндекс Карты" OR "2ГИС" OR "Google Maps")',
-    # 2. Топовые креативные и digital-агентства
     'site:platov.vc OR site:banda.agency ("Яндекс Карты" OR "2ГИС" OR "Google Maps")',
     'site:iskra.biz OR site:happyagency.ru ("Яндекс Карты" OR "2ГИС")',
-    # 3. Media и дизайн-платформы
     'site:lookatme.ru OR site:slon.ru ("Яндекс Карты" OR "2ГИС" OR "Google Карты")',
-    # 4. SEO и IT-маркетинг
     'site:seonews.ru OR site:clubber.ru OR site:metodmedia.ru ("Яндекс Карты" OR "2ГИС" OR "Google Карты")',
-    # 5. Профильные ассоциации рынка
     'site:snil.ru OR site:akarussia.ru OR site:digital.ru ("Яндекс Карты" OR "2ГИС")',
-    # 6. Широкая сеть по всему интернету (Ищем слова из рекламы)
     '("Яндекс Карты" OR "2ГИС" OR "Google Maps") AND ("креативное агентство" OR "медиаплан" OR "спецпроект" OR "кейс" OR "наружная реклама")'
 ]
 
-# СПИСОК СЛОВ-МАРКЕРОВ ДЛЯ "ЩИТА" (Защита от мусора)
+# Белый список (Щит)
 REQUIRED_BRANDS = [
     'яндекс карт', '2гис', 'дубльгис', 'google карт', 'навител', 
     'ситигид', 'organic maps', 'maps.me', 'османд', 'osmand',
     'яндекс бизнес', 'google business', 'картографическ'
 ]
+
+# Черный список (Отсеиваем вакансии и инструкции для владельцев)
+BANNED_PHRASES = [
+    'ищу', 'вакансия', 'требуется', 'резюме', 'бренд-лид', 'продакт-менеджер на',
+    'упаковка карточки', 'оформление карточки', 'как добавить организацию', 'как попасть в карты',
+    'накрутка отзывов', 'как повысить рейтинг', 'как удалить отзыв', 'как ответить на отзыв',
+    'ведение карточки', 'оформить карточку', 'продвижение карточки', 'как исправить ошибку в'
+]
+
+# Функция для защиты ссылок от поломки в Телеграме
+def escape_html(text):
+    text = text.replace('&', '&amp;')
+    text = text.replace('<', '&lt;')
+    text = text.replace('>', '&gt;')
+    return text
 
 def translate_to_ru(text):
     try:
@@ -105,18 +112,30 @@ def get_news(queries, lang, gl, do_translate=False, is_marketing=False):
                         clean_title = parts[0].strip()
                         source = parts[1].strip()
 
-                    # "ЩИТ" ПРОТИВ МУСОРА (включается только для блока маркетинга)
+                    # Логика фильтрации (только для маркетинга)
                     if is_marketing:
                         title_lower = clean_title.lower()
+                        
+                        # 1. Щит: нет бренда = мусор
                         if not any(brand in title_lower for brand in REQUIRED_BRANDS):
-                            print(f"МУСОР ОТБРОШЕН: {clean_title[:40]}...")
+                            print(f"МУСОР (нет бренда): {clean_title[:40]}...")
+                            continue
+                            
+                        # 2. Черный список: вакансии и рутинные гайды = мусор
+                        if any(bad_phrase in title_lower for bad_phrase in BANNED_PHRASES):
+                            print(f"МУСОР (гайд/вакансия): {clean_title[:40]}...")
                             continue
 
                     if do_translate:
                         print(f"Перевожу: {clean_title[:30]}...")
                         clean_title = translate_to_ru(clean_title)
                         
-                    news_items.append(f"<b>{pub_date}</b>\n{clean_title}\n{source} | <a href='{link}'>Читать</a>")
+                    # ЭКРАНИРУЕМ HTML (ИСПРАВЛЯЕТ БИТЫЕ ССЫЛКИ)
+                    safe_title = escape_html(clean_title)
+                    safe_source = escape_html(source)
+                    safe_link = link.replace('&', '&amp;') # Ссылки ломались именно из-за &
+                        
+                    news_items.append(f"<b>{pub_date}</b>\n{safe_title}\n{safe_source} | <a href='{safe_link}'>Читать</a>")
         except Exception as e:
             print(f"Ошибка запроса: {e}")
             
