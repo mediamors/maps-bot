@@ -1,16 +1,21 @@
 import feedparser
 import requests
 import sys
-import re
+import json
 from datetime import datetime, timedelta
 
 TOKEN = '8315240372:AAHSLp4ttCPRwysSmEh8r6otZkMQRcJUuUE'
 CHANNEL_ID = '-1004352959600'
 
+# ==========================================
+# 1. ЗАПРОСЫ ДЛЯ ЧЕТВЕРГА (РФ + МИР)
+# ==========================================
 QUERIES_RU = [
     '"Яндекс Карты" OR "Яндекс.Карты" OR "Яндекс Навигатор" OR "2ГИС" OR "ДубльГИС" OR "2GIS"',
     '"Google Карты" OR "Google Maps" OR "СитиГид" OR "CityGuide" OR "Навител" OR "Organic Maps" OR "Maps.me" OR "OsmAnd"',
-    '"Яндекс Бизнес" OR "Google Business" OR "Foursquare" OR "картографический сервис" OR "геосервис" OR "навигационное приложение"'
+    '"Яндекс Бизнес" OR "Google Business" OR "Foursquare" OR "картографический сервис" OR "геосервис" OR "навигационное приложение"',
+    # VC.ru перенесен сюда
+    'site:vc.ru ("Яндекс Карты" OR "2ГИС" OR "Google Maps" OR "Навител")'
 ]
 
 QUERIES_WORLD = [
@@ -19,69 +24,134 @@ QUERIES_WORLD = [
     '"KakaoMap" OR "Naver Map" OR "Baidu Maps" OR "Gaode Maps" OR "Amap" OR "Navitime" OR "MapmyIndia" OR "GrabMaps" OR "Gojek Maps" OR "OpenStreetMap"'
 ]
 
+# ==========================================
+# 2. ЗАПРОСЫ ДЛЯ ПОНЕДЕЛЬНИКА (МАРКЕТИНГ И АГЕНТСТВА)
+# Разбиты на "пачки" по 4 сайта, чтобы не сломать Google News RSS
+# ==========================================
 QUERIES_MARKETING = [
-    'site:sostav.ru ("Яндекс Карты" OR "2ГИС" OR "Google Карты" OR "Яндекс Бизнес")',
-    'site:vc.ru ("Яндекс Карты" OR "2ГИС" OR "Google Maps")',
-    'site:platov.vc OR site:banda.agency ("Яндекс Карты" OR "2ГИС" OR "Google Maps")',
-    'site:iskra.biz OR site:happyagency.ru ("Яндекс Карты" OR "2ГИС")',
-    'site:lookatme.ru OR site:slon.ru ("Яндекс Карты" OR "2ГИС" OR "Google Карты")',
-    'site:seonews.ru OR site:clubber.ru OR site:metodmedia.ru ("Яндекс Карты" OR "2ГИС" OR "Google Карты")',
-    'site:snil.ru OR site:akarussia.ru OR site:digital.ru ("Яндекс Карты" OR "2ГИС")',
+    # --- Медиа и Аналитика ---
+    'site:sostav.ru OR site:slon.ru OR site:lookatme.ru ("Яндекс Карты" OR "2ГИС" OR "Google Карты")',
+    'site:roistat.com OR site:seonews.ru OR site:clubber.ru OR site:metodmedia.ru ("Яндекс Карты" OR "2ГИС")',
+    
+    # --- PPL, Affiliate и Performance ---
+    'site:admitad.com OR site:workle.ru OR site:click.ru OR site:alfalead.ru ("Яндекс Карты" OR "2ГИС")',
+    'site:pandordo.com OR site:elama.ru OR site:roibonus.ru OR site:actionpay.ru ("Яндекс Карты" OR "2ГИС")',
+    'site:salesfinder.ru OR site:targethunter.ru OR site:profitcommander.com ("Яндекс Карты" OR "2ГИС")',
+    
+    # --- SMM и Digital-холдинги ---
+    'site:smmplanner.com OR site:netpeak.net OR site:icontext.ru OR site:ingate.ru ("Яндекс Карты" OR "2ГИС")',
+    'site:jetstyle.ru OR site:freshmiddle.ru OR site:promo.ru OR site:instream.ru ("Яндекс Карты" OR "2ГИС")',
+    'site:promeo.ru OR site:labuda.pro OR site:alexadigital.ru OR site:zorka.space ("Яндекс Карты" OR "2ГИС")',
+    'site:actiondigital.ru OR site:greens.agency OR site:mindspace.ru OR site:vitamingroup.ru ("Яндекс Карты" OR "2ГИС")',
+    
+    # --- PR и SERM ---
+    'site:imc.ru OR site:mslgroup.ru OR site:spn.ru OR site:piar-shkola.ru ("Яндекс Карты" OR "2ГИС")',
+    'site:plus8.ru OR site:imaginegroup.ru OR site:apr-agency.ru OR site:manganis.ru ("Яндекс Карты" OR "2ГИС")',
+    
+    # --- Креатив, Дизайн и Брендинг ---
+    'site:ony.agency OR site:shuka.design OR site:atao.ru OR site:kollegi.agency ("Яндекс Карты" OR "2ГИС")',
+    'site:partizan.moscow OR site:blackwhite.su OR site:ulybkaradugi.ru OR site:voskhod.agency ("Яндекс Карты" OR "2ГИС")',
+    'site:suprematika.com OR site:lovata.com OR site:rendell.ru OR site:artlebedev.ru ("Яндекс Карты" OR "2ГИС")',
+    'site:mildberry.ru OR site:emotionalbranding.ru OR site:velvet.media OR site:fiercepanda.ru ("Яндекс Карты" OR "2ГИС")',
+    'site:pencil.agency OR site:onlineman.ru OR site:wannart.ru OR site:platov.vc ("Яндекс Карты" OR "2ГИС")',
+    'site:banda.agency OR site:iskra.biz OR site:happyagency.ru OR site:possible.ru ("Яндекс Карты" OR "2ГИС")',
+    'site:adv.ru OR site:dentsu.ru OR site:publicisgroupe.ru OR site:omnicommediagroup.ru ("Яндекс Карты" OR "2ГИС")',
+    
+    # --- Event, BTL и Контент ---
+    'site:agt.ru OR site:mkgroup.ru OR site:eventum.ru OR site:yva.ru ("Яндекс Карты" OR "2ГИС")',
+    'site:mediacube.media OR site:saltcontent.ru OR site:ideaplatform.ru OR site:freakyfranky.ru ("Яндекс Карты" OR "2ГИС")',
+    'site:redquadro.ru OR site:groupm.com OR site:starcom.ru OR site:mediacom.ru ("Яндекс Карты" OR "2ГИС")',
+    'site:maxima.ru OR site:omd.com OR site:snil.ru OR site:akarussia.ru ("Яндекс Карты" OR "2ГИС")',
+    'site:digital.ru OR site:deviate.ru OR site:pm.media ("Яндекс Карты" OR "2ГИС")',
+
+    # --- Широкая сеть по всему интернету ---
     '("Яндекс Карты" OR "2ГИС" OR "Google Maps") AND ("креативное агентство" OR "медиаплан" OR "спецпроект" OR "кейс" OR "наружная реклама")'
 ]
 
-# Белый список (Щит)
-REQUIRED_BRANDS = [
-    'яндекс карт', '2гис', 'дубльгис', 'google карт', 'навител', 
-    'ситигид', 'organic maps', 'maps.me', 'османд', 'osmand',
-    'яндекс бизнес', 'google business', 'картографическ'
-]
+# ==========================================
+# 3. ФИЛЬТРЫ (ЩИТ И ЧЕРНЫЙ СПИСОК)
+# ==========================================
+REQUIRED_BRANDS = ['яндекс карт', '2гис', 'дубльгис', 'google карт', 'навител', 'ситигид', 'organic maps', 'maps.me', 'османд', 'османд', 'яндекс бизнес', 'google business', 'картографическ']
 
-# Черный список (Отсеиваем вакансии и инструкции для владельцев)
-BANNED_PHRASES = [
-    'ищу', 'вакансия', 'требуется', 'резюме', 'бренд-лид', 'продакт-менеджер на',
-    'упаковка карточки', 'оформление карточки', 'как добавить организацию', 'как попасть в карты',
-    'накрутка отзывов', 'как повысить рейтинг', 'как удалить отзыв', 'как ответить на отзыв',
-    'ведение карточки', 'оформить карточку', 'продвижение карточки', 'как исправить ошибку в'
-]
+BANNED_PHRASES = ['ищу', 'вакансия', 'требуется', 'резюме', 'бренд-лид', 'продакт-менеджер на', 'упаковка карточки', 'оформление карточки', 'как добавить организацию', 'как попасть в карты', 'накрутка отзывов', 'как повысить рейтинг', 'как удалить отзыв', 'как ответить на отзыв', 'ведение карточки', 'оформить карточку', 'продвижение карточки', 'как исправить ошибку в']
 
-# Функция для защиты ссылок от поломки в Телеграме
-def escape_html(text):
-    text = text.replace('&', '&amp;')
-    text = text.replace('<', '&lt;')
-    text = text.replace('>', '&gt;')
-    return text
+# ==========================================
+# 4. TELEGRA.PH API (ГЕНЕРАЦИЯ СТАТЕЙ)
+# ==========================================
+def get_telegraph_token():
+    # Получаем токен динамически (если аккаунт есть - вернет существующий)
+    r = requests.get('https://api.telegra.ph/createAccount', params={
+        'short_name': 'MapsPMM_Digest',
+        'author_name': 'Maps Digest Bot'
+    })
+    return r.json()['result']['access_token']
 
+def create_telegraph_page(title, news_items):
+    t_token = get_telegraph_token()
+    
+    # Формируем JSON для красивой верстки статьи
+    content = []
+    for item in news_items:
+        date, title, source, link = item
+        content.append({
+            "tag": "p",
+            "children": [
+                {"tag": "strong", "children": [date]},
+                " — ",
+                {"tag": "a", "href": link, "children": [title]}
+            ]
+        })
+        content.append({
+            "tag": "p",
+            "children": [{"tag": "em", "children": [source]}]
+        })
+        # Отступ между новостями
+        content.append({"tag": "br"})
+
+    r = requests.post('https://api.telegra.ph/createPage', json={
+        'access_token': t_token,
+        'title': title,
+        'author_name': 'Maps PMM',
+        'content': content,
+        'return_content': False
+    })
+    
+    if r.status_code == 200 and r.json()['ok']:
+        return r.json()['result']['url']
+    return None
+
+# ==========================================
+# 5. ПЕРЕВОДЧИК
+# ==========================================
 def translate_to_ru(text):
     try:
         url = f"https://translate.google.com/m?sl=en&tl=ru&q={requests.utils.quote(text)}"
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        headers = {'User-Agent': 'Mozilla/5.0'}
         response = requests.get(url, headers=headers, timeout=10)
         start_tag = '<div class="result-container">'
         end_tag = '</div>'
         if start_tag in response.text:
             translated = response.text.split(start_tag)[1].split(end_tag)[0]
+            import re
             return re.sub('<[^<]+?>', '', translated).strip()
-    except Exception as e:
-        print(f"Ошибка перевода: {e}")
+    except:
+        pass
     return text
 
-def send_message(text):
+# ==========================================
+# 6. ОТПРАВКА В ТЕЛЕГРАМ
+# ==========================================
+def send_tg_message(text):
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    payload = {
-        "chat_id": CHANNEL_ID,
-        "text": text,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": True
-    }
-    response = requests.post(url, json=payload)
-    print(f"ОТВЕТ ТЕЛЕГРАМА: {response.status_code}")
-    if response.status_code != 200:
-        raise Exception(f"ОШИБКА: {response.text}")
+    payload = {"chat_id": CHANNEL_ID, "text": text, "parse_mode": "HTML", "disable_web_page_preview": True}
+    requests.post(url, json=payload)
 
+# ==========================================
+# 7. СБОР НОВОСТЕЙ
+# ==========================================
 def get_news(queries, lang, gl, do_translate=False, is_marketing=False):
     week_ago = datetime.now() - timedelta(days=7)
-    news_items = []
+    news_items = [] # Формат: [(date, clean_title, source, link), ...]
     seen_links = set()
     
     for query in queries:
@@ -112,54 +182,64 @@ def get_news(queries, lang, gl, do_translate=False, is_marketing=False):
                         clean_title = parts[0].strip()
                         source = parts[1].strip()
 
-                    # Логика фильтрации (только для маркетинга)
                     if is_marketing:
                         title_lower = clean_title.lower()
-                        
-                        # 1. Щит: нет бренда = мусор
                         if not any(brand in title_lower for brand in REQUIRED_BRANDS):
-                            print(f"МУСОР (нет бренда): {clean_title[:40]}...")
                             continue
-                            
-                        # 2. Черный список: вакансии и рутинные гайды = мусор
-                        if any(bad_phrase in title_lower for bad_phrase in BANNED_PHRASES):
-                            print(f"МУСОР (гайд/вакансия): {clean_title[:40]}...")
+                        if any(bad in title_lower for bad in BANNED_PHRASES):
                             continue
 
                     if do_translate:
-                        print(f"Перевожу: {clean_title[:30]}...")
                         clean_title = translate_to_ru(clean_title)
                         
-                    # ЭКРАНИРУЕМ HTML (ИСПРАВЛЯЕТ БИТЫЕ ССЫЛКИ)
-                    safe_title = escape_html(clean_title)
-                    safe_source = escape_html(source)
-                    safe_link = link.replace('&', '&amp;') # Ссылки ломались именно из-за &
-                        
-                    news_items.append(f"<b>{pub_date}</b>\n{safe_title}\n{safe_source} | <a href='{safe_link}'>Читать</a>")
-        except Exception as e:
-            print(f"Ошибка запроса: {e}")
+                    news_items.append((pub_date, clean_title, source, link))
+        except:
+            pass
             
-    news_items.sort(key=lambda x: x.split('\n')[0], reverse=True)
+    # Сортировка по дате
+    news_items.sort(key=lambda x: x[0], reverse=True)
     return news_items[:20]
 
+# ==========================================
+# 8. ГЛАВНАЯ ЛОГИКА
+# ==========================================
 region = sys.argv[1]
 
 if region == 'RU':
     news = get_news(QUERIES_RU, 'ru', 'RU')
-    header = "🇷🇺 <b>Карты РФ</b>\n\n"
-    hashtags = "\n\n#новостирф"
+    title_tg = "🇷🇺 <b>Карты РФ</b>"
+    title_ph = "Карты РФ: Дайджест"
+    hashtag = "\n\n#новостирф"
 elif region == 'WORLD':
     news = get_news(QUERIES_WORLD, 'en', 'US', do_translate=True)
-    header = "🌍 <b>Карты в мире</b>\n\n"
-    hashtags = "\n\n#новостимир"
+    title_tg = "🌍 <b>Карты в мире</b>"
+    title_ph = "Мировые карты: Дайджест"
+    hashtag = "\n\n#новостимир"
 else:
     news = get_news(QUERIES_MARKETING, 'ru', 'RU', is_marketing=True)
-    header = "📺 <b>Маркетинг в индустрии</b>\n\n"
-    hashtags = "\n\n#реклама"
+    title_tg = "📺 <b>Маркетинг в индустрии</b>"
+    title_ph = "Маркетинг в индустрии карт: Дайджест"
+    hashtag = "\n\n#реклама"
 
 if not news:
-    final_text = header + "На этой неделе новостей не найдено." + hashtags
+    send_tg_message(f"{title_tg}\n\nНа этой неделе новостей не найдено.{hashtag}")
 else:
-    final_text = header + "\n\n".join(news) + hashtags
-
-send_message(final_text)
+    # Вычисляем период дат для превью
+    dates = [item[0] for item in news]
+    min_date = dates[-1]
+    max_date = dates[0]
+    
+    # Создаем страницу на Telegra.ph
+    print("Создаю страницу на Telegra.ph...")
+    ph_url = create_telegraph_page(title_ph, news)
+    
+    if ph_url:
+        # Формируем короткую плашку для канала
+        msg = f"{title_tg}\n📅 За период: {min_date} — {max_date}\n\n👇 <a href='{ph_url}'>Открыть полный дайджест</a>{hashtag}"
+        send_tg_message(msg)
+        print("Успех! Короткая ссылка отправлена в канал.")
+    else:
+        # Запасной вариант, если Telegra.ph упал (что почти никогда не бывает)
+        print("Ошибка Telegra.ph, отправляю текстом.")
+        text = title_tg + "\n\n" + "\n\n".join([f"<b>{d}</b>\n{t}\n{s} | <a href='{l}'>Читать</a>" for d, t, s, l in news]) + hashtag
+        send_tg_message(text)
