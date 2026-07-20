@@ -2,8 +2,8 @@ name: Maps Bot
 on:
   workflow_dispatch:
   schedule:
-    # Пон в 10:00 МСК (Все дайджесты разом)
-    - cron: '0 7 * * 1'
+    # Пон в 12:50 МСК (что равно 09:50 UTC)
+    - cron: '50 9 * * 1'
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -16,20 +16,20 @@ jobs:
     
     # 1. Сначала отправляем шапку с датами
     - name: Send Header
-      if: github.event.schedule == '0 7 * * 4' || github.event_name == 'workflow_dispatch'
+      if: github.event.schedule == '50 9 * * 1' || github.event_name == 'workflow_dispatch'
       run: python bot.py HEADER
       
     # 2. Потом Маркетинг
     - name: Marketing
-      if: github.event.schedule == '0 7 * * 4' || github.event_name == 'workflow_dispatch'
+      if: github.event.schedule == '50 9 * * 1' || github.event_name == 'workflow_dispatch'
       run: python bot.py MARKETING
       
     # 3. Потом РФ
     - name: Russia
-      if: github.event.schedule == '0 7 * * 4' || github.event_name == 'workflow_dispatch'
+      if: github.event.schedule == '50 9 * * 1' || github.event_name == 'workflow_dispatch'
       run: python bot.py RU
       
     # 4. В конце Мир
     - name: World
-      if: github.event.schedule == '0 7 * * 4' || github.event_name == 'workflow_dispatch'
+      if: github.event.schedule == '50 9 * * 1' || github.event_name == 'workflow_dispatch'
       run: python bot.py WORLD
