@@ -2,8 +2,8 @@ name: Maps Bot
 on:
   workflow_dispatch:
   schedule:
-    # 15:20 МСК = 12:20 UTC
-    - cron: '20 12 * * 1'
+    # 16:20 МСК = 13:20 UTC
+    - cron: '20 13 * * 1'
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,17 +15,13 @@ jobs:
     - run: pip install feedparser requests
     
     - name: Send Header
-      if: github.event.schedule == '20 12 * * 1' || github.event_name == 'workflow_dispatch'
       run: python bot.py HEADER
       
     - name: Marketing
-      if: github.event.schedule == '20 12 * * 1' || github.event_name == 'workflow_dispatch'
       run: python bot.py MARKETING
       
     - name: Russia
-      if: github.event.schedule == '20 12 * * 1' || github.event_name == 'workflow_dispatch'
       run: python bot.py RU
       
     - name: World
-      if: github.event.schedule == '20 12 * * 1' || github.event_name == 'workflow_dispatch'
       run: python bot.py WORLD
