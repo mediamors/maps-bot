@@ -224,7 +224,7 @@ region = sys.argv[1]
 period_str = get_week_period()
 
 if region == 'HEADER':
-    send_tg_message(f"↧ Дайджест за {period_str}")
+    send_tg_message(f"↧ Дайджест-1 за {period_str}")
     
 else:
     if region == 'RU':
