@@ -2,7 +2,7 @@ name: Maps Bot
 on:
   workflow_dispatch:
   schedule:
-    # Четверг в 10:00 МСК (Все дайджесты разом)
+    # Пон в 10:00 МСК (Все дайджесты разом)
     - cron: '0 7 * * 1'
 jobs:
   build:
