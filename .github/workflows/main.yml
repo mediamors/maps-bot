@@ -2,8 +2,8 @@ name: Main Scoring Bot
 on:
   workflow_dispatch:
   schedule:
-    # Запускается в Пон в 12:30 МСК (что равно 09:30 UTC)
-    - cron: '30 9 * * 1'
+    # 15:00 МСК = 12:00 UTC
+    - cron: '0 12 * * 1'
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,17 +15,17 @@ jobs:
     - run: pip install feedparser requests
     
     - name: Send Header
-      if: github.event.schedule == '30 9 * * 1' || github.event_name == 'workflow_dispatch'
+      if: github.event.schedule == '0 12 * * 1' || github.event_name == 'workflow_dispatch'
       run: python main.py HEADER
       
     - name: Marketing
-      if: github.event.schedule == '30 9 * * 1' || github.event_name == 'workflow_dispatch'
+      if: github.event.schedule == '0 12 * * 1' || github.event_name == 'workflow_dispatch'
       run: python main.py MARKETING
       
     - name: Russia
-      if: github.event.schedule == '30 9 * * 1' || github.event_name == 'workflow_dispatch'
+      if: github.event.schedule == '0 12 * * 1' || github.event_name == 'workflow_dispatch'
       run: python main.py RU
       
     - name: World
-      if: github.event.schedule == '30 9 * * 1' || github.event_name == 'workflow_dispatch'
+      if: github.event.schedule == '0 12 * * 1' || github.event_name == 'workflow_dispatch'
       run: python main.py WORLD
