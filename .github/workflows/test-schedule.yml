@@ -1,0 +1,9 @@
+name: Test Schedule
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # каждые 5 минут
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Scheduled job works!"
