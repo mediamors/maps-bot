@@ -312,7 +312,7 @@ region = sys.argv[1]
 period_str = get_week_period()
 
 if region == 'HEADER':
-    send_tg_message(f"↧ Дайджест-2 за {period_str} (Test Scoring Algorithm)")
+    send_tg_message(f"↧ Дайджест-2 за {period_str}")
     
 else:
     if region == 'RU':
