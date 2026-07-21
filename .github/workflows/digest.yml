@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   schedule:
     # 16:20 МСК = 13:20 UTC
-    - cron: '20 13 * * 1'
+    - cron: '20 1 * * 1'
 jobs:
   build:
     runs-on: ubuntu-latest
