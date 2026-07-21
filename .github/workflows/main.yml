@@ -2,8 +2,9 @@ name: Main Scoring Bot
 on:
   workflow_dispatch:
   schedule:
-    # 16:00 МСК = 13:00 UTC
-    - cron: '11 5 * * 2'
+    # 07:00 МСК = 04:00 UTC (Вторник)
+    # Используем :04 минуты вместо :00 для более быстрого старта
+    - cron: '4 4 * * 2'
 jobs:
   build:
     runs-on: ubuntu-latest
